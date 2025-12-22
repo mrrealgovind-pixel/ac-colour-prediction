@@ -58,7 +58,7 @@
 </div>
 
 <div class="coins">
-  Coins: <span id="coins">1000</span>
+  Coins: <span id="coins">0</span>
 </div>
 
 <div class="timer">
@@ -96,9 +96,16 @@
     }
   });
 
+  // ✅ GAME VARIABLES
   let coins = 1000;
   let selectedColor = "";
   let time = 30;
+
+  // ✅ FORCE COINS SHOW ON LOAD
+  window.onload = function(){
+    document.getElementById("coins").innerText = coins;
+    document.getElementById("time").innerText = time;
+  };
 
   function bet(color){
     if(coins < 50){
@@ -115,9 +122,10 @@
     time--;
     document.getElementById("time").innerText = time;
 
-    if(time === 0){
+    if(time <= 0){
       showResult();
       time = 30;
+      document.getElementById("time").innerText = time;
     }
   },1000);
 
@@ -147,4 +155,4 @@
 </script>
 
 </body>
-  </html>
+</html>
