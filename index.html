@@ -1,17 +1,34 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>AC Colour Prediction</title>
+  <title>AC Colour Prediction - Login</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- Firebase SDK (ONLY COMPAT) -->
+  <!-- Firebase SDK (COMPAT ONLY) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 
   <style>
-    body{font-family:Arial;background:#111;color:#fff;text-align:center}
-    input,button{padding:12px;margin:8px;width:80%}
-    button{background:#ff9800;border:none;color:#000;font-weight:bold}
+    body{
+      font-family: Arial;
+      background:#111;
+      color:#fff;
+      text-align:center;
+      padding-top:40px;
+    }
+    input,button{
+      padding:12px;
+      margin:8px;
+      width:80%;
+      font-size:16px;
+    }
+    button{
+      background:#ff9800;
+      border:none;
+      color:#000;
+      font-weight:bold;
+      cursor:pointer;
+    }
   </style>
 </head>
 
@@ -19,7 +36,7 @@
 
 <h2>AC Colour Prediction</h2>
 
-<input id="email" placeholder="Email">
+<input id="email" type="email" placeholder="Email">
 <input id="password" type="password" placeholder="Password">
 
 <button onclick="register()">Register</button>
@@ -28,7 +45,7 @@
 <p id="msg"></p>
 
 <script>
-  // ✅ REAL FIREBASE CONFIG (ONLY ONE)
+  // 🔥 FIREBASE CONFIG
   const firebaseConfig = {
     apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
     authDomain: "ac-colour-prediction.firebaseapp.com",
@@ -38,19 +55,25 @@
     appId: "1:471938348888:web:ac3fc3eb1939eb7cbe172d"
   };
 
-  // Initialize Firebase
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
+
+  // ✅ AUTO REDIRECT IF ALREADY LOGIN
+  auth.onAuthStateChanged(user => {
+    if (user) {
+      window.location.href = "game.html";
+    }
+  });
 
   function register(){
     auth.createUserWithEmailAndPassword(
       document.getElementById("email").value,
       document.getElementById("password").value
     )
-    .then(()=>{
-      document.getElementById("msg").innerText = "Registered successfully";
+    .then(() => {
+      window.location.href = "game.html";
     })
-    .catch(e=>{
+    .catch(e => {
       document.getElementById("msg").innerText = e.message;
     });
   }
@@ -60,10 +83,10 @@
       document.getElementById("email").value,
       document.getElementById("password").value
     )
-    .then(()=>{
-      document.getElementById("msg").innerText = "Login successful";
+    .then(() => {
+      window.location.href = "game.html";
     })
-    .catch(e=>{
+    .catch(e => {
       document.getElementById("msg").innerText = e.message;
     });
   }
