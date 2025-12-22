@@ -12,6 +12,9 @@
     button{background:#ff9800;border:none;color:#000;font-weight:bold}
   </style>
 </head>
+  <!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <body>
 
 <h2>AC Colour Prediction</h2>
@@ -59,3 +62,18 @@
 
 </body>
 </html>
+<script>
+  // Your web app's Firebase configuration
+  const firebaseConfig = {
+    apiKey: "PASTE_API_KEY_HERE",
+    authDomain: "PASTE_AUTH_DOMAIN_HERE",
+    projectId: "PASTE_PROJECT_ID_HERE",
+    storageBucket: "PASTE_STORAGE_BUCKET_HERE",
+    messagingSenderId: "PASTE_SENDER_ID_HERE",
+    appId: "PASTE_APP_ID_HERE"
+  };
+
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+</script>
