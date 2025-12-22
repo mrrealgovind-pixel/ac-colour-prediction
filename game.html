@@ -7,6 +7,7 @@
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
   <style>
     body{
@@ -88,24 +89,34 @@
 
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
+  const db = firebase.firestore();
 
-  // 🔒 Login protection
-  auth.onAuthStateChanged(user=>{
-    if(!user){
-      window.location.href="index.html";
-    }
-  });
-
-  // ✅ GAME VARIABLES
-  let coins = 1000;
+  let coins = 0;
   let selectedColor = "";
   let time = 30;
 
-  // ✅ FORCE COINS SHOW ON LOAD
-  window.onload = function(){
-    document.getElementById("coins").innerText = coins;
-    document.getElementById("time").innerText = time;
-  };
+  // 🔒 Login + Load Coins
+  auth.onAuthStateChanged(user=>{
+    if(!user){
+      window.location.href="index.html";
+    }else{
+      loadCoins(user.uid);
+    }
+  });
+
+  function loadCoins(uid){
+    db.collection("users").doc(uid).get().then(doc=>{
+      if(doc.exists){
+        coins = doc.data().coins;
+      }else{
+        coins = 1000;
+        db.collection("users").doc(uid).set({
+          coins: coins
+        });
+      }
+      document.getElementById("coins").innerText = coins;
+    });
+  }
 
   function bet(color){
     if(coins < 50){
@@ -144,6 +155,14 @@
     }
 
     document.getElementById("coins").innerText = coins;
+
+    const user = auth.currentUser;
+    if(user){
+      db.collection("users").doc(user.uid).update({
+        coins: coins
+      });
+    }
+
     selectedColor = "";
   }
 
