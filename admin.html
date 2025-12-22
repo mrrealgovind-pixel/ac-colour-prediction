@@ -1,94 +1,142 @@
-  <!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
   <title>Admin Panel - AC Colour Prediction</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
   <style>
-    body{
-      background:#111;
-      color:#fff;
-      font-family:Arial;
-      text-align:center;
-      padding-top:30px;
-    }
-    button{
-      padding:15px;
-      margin:10px;
-      width:80%;
-      font-size:18px;
-      font-weight:bold;
-      border:none;
-      cursor:pointer;
-    }
+    body{background:#111;color:#fff;font-family:Arial;padding:10px}
+    h2,h3{text-align:center}
+    button{padding:8px;margin:5px;font-weight:bold}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{border:1px solid #555;padding:6px;text-align:center}
     .red{background:red;color:#fff}
     .green{background:green;color:#fff}
     .violet{background:violet;color:#000}
-    .logout{background:#fff;color:#000;width:40%}
   </style>
 </head>
 
 <body>
 
 <h2>ADMIN PANEL</h2>
-<p>Set Result (Live)</p>
 
-<button class="red" onclick="setResult('Red')">SET RED</button>
-<button class="green" onclick="setResult('Green')">SET GREEN</button>
-<button class="violet" onclick="setResult('Violet')">SET VIOLET</button>
+<h3>🎯 Set Game Result</h3>
+<button class="red" onclick="setResult('Red')">RED</button>
+<button class="green" onclick="setResult('Green')">GREEN</button>
+<button class="violet" onclick="setResult('Violet')">VIOLET</button>
 
-<p id="msg"></p>
+<h3>👥 Users</h3>
+<table id="usersTable">
+<tr>
+<th>Email</th>
+<th>Coins</th>
+<th>UPI</th>
+<th>Add Coins</th>
+</tr>
+</table>
 
-<button class="logout" onclick="logout()">Logout</button>
+<h3>💸 Withdrawal Requests</h3>
+<table id="withdrawTable">
+<tr>
+<th>User</th>
+<th>Coins</th>
+<th>UPI</th>
+<th>Status</th>
+<th>Action</th>
+</tr>
+</table>
+
+<button onclick="logout()">Logout</button>
 
 <script>
-  // 🔥 Firebase Config
-  const firebaseConfig = {  
-    apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",  
-    authDomain: "ac-colour-prediction.firebaseapp.com",  
-    projectId: "ac-colour-prediction",  
-    storageBucket: "ac-colour-prediction.appspot.com",  
-    messagingSenderId: "471938348888",  
-    appId: "1:471938348888:web:ac3fc3eb1939eb7cbe172d"  
-  };
+const firebaseConfig = {
+  apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
+  authDomain: "ac-colour-prediction.firebaseapp.com",
+  projectId: "ac-colour-prediction",
+  storageBucket: "ac-colour-prediction.appspot.com",
+  messagingSenderId: "471938348888",
+  appId: "1:471938348888:web:ac3fc3eb1939eb7cbe172d"
+};
 
-  // Initialize Firebase
-  firebase.initializeApp(firebaseConfig);
-  const auth = firebase.auth();
-  const db = firebase.firestore();
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
 
-  const ADMIN_EMAIL = "admin@gmail.com"; // 🔴 Change if needed
+const ADMIN_EMAIL = "admin@gmail.com";
 
-  // 🔒 Admin login check
-  auth.onAuthStateChanged(user=>{
-    if(!user || user.email !== ADMIN_EMAIL){
-      alert("Not Authorized");
-      window.location.href="index.html";
-    }
+auth.onAuthStateChanged(user=>{
+  if(!user || user.email !== ADMIN_EMAIL){
+    alert("Not Authorized");
+    location.href="index.html";
+  } else {
+    loadUsers();
+    loadWithdrawals();
+  }
+});
+
+function setResult(color){
+  db.collection("admin").doc("result").set({color});
+  alert("Result set: " + color);
+}
+
+function loadUsers(){
+  db.collection("users").onSnapshot(snap=>{
+    let html = `<tr><th>Email</th><th>Coins</th><th>UPI</th><th>Add Coins</th></tr>`;
+    snap.forEach(doc=>{
+      let d = doc.data();
+      html += `
+      <tr>
+        <td>${d.email || ""}</td>
+        <td>${d.coins || 0}</td>
+        <td>${d.upi || "-"}</td>
+        <td>
+          <button onclick="addCoins('${doc.id}')">+100</button>
+        </td>
+      </tr>`;
+    });
+    usersTable.innerHTML = html;
   });
+}
 
-  // 🔴 Set Result function
-  function setResult(color){
-    db.collection("admin").doc("result").set({
-      color: color
-    }).then(()=>{
-      document.getElementById("msg").innerText =
-        "Result set to " + color;
-    });
-  }
+function addCoins(uid){
+  db.collection("users").doc(uid).update({
+    coins: firebase.firestore.FieldValue.increment(100)
+  });
+}
 
-  // 🔴 Logout
-  function logout(){
-    auth.signOut().then(()=>{
-      window.location.href="index.html";
+function loadWithdrawals(){
+  db.collection("withdrawals").onSnapshot(snap=>{
+    let html = `<tr><th>User</th><th>Coins</th><th>UPI</th><th>Status</th><th>Action</th></tr>`;
+    snap.forEach(doc=>{
+      let d = doc.data();
+      html += `
+      <tr>
+        <td>${d.uid}</td>
+        <td>${d.coins}</td>
+        <td>${d.upi}</td>
+        <td>${d.status}</td>
+        <td>
+          ${d.status=="Pending" ? `<button onclick="approve('${doc.id}')">Approve</button>` : ""}
+        </td>
+      </tr>`;
     });
-  }
+    withdrawTable.innerHTML = html;
+  });
+}
+
+function approve(id){
+  db.collection("withdrawals").doc(id).update({status:"Approved"});
+}
+
+function logout(){
+  auth.signOut();
+  location.href="index.html";
+}
 </script>
 
 </body>
-    </html>
+</html>
