@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Panel - AC Colour Prediction</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    body{
+      background:#111;
+      color:#fff;
+      font-family:Arial;
+      text-align:center;
+      padding-top:30px;
+    }
+    button{
+      padding:15px;
+      margin:10px;
+      width:80%;
+      font-size:18px;
+      font-weight:bold;
+      border:none;
+      cursor:pointer;
+    }
+    .red{background:red;color:#fff}
+    .green{background:green;color:#fff}
+    .violet{background:violet;color:#000}
+    .logout{background:#fff;color:#000;width:40%}
+  </style>
+</head>
+
+<body>
+
+<h2>ADMIN PANEL</h2>
+<p>Set Result (Live)</p>
+
+<button class="red" onclick="setResult('Red')">SET RED</button>
+<button class="green" onclick="setResult('Green')">SET GREEN</button>
+<button class="violet" onclick="setResult('Violet')">SET VIOLET</button>
+
+<p id="msg"></p>
+
+<button class="logout" onclick="logout()">Logout</button>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
+    authDomain: "ac-colour-prediction.firebaseapp.com",
+    projectId: "ac-colour-prediction",
+    storageBucket: "ac-colour-prediction.appspot.com",
+    messagingSenderId: "471938348888",
+    appId: "1:471938348888:web:ac3fc3eb1939eb7cbe172d"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+
+  const ADMIN_EMAIL = "admin@gmail.com"; // 🔴 CHANGE IF NEEDED
+
+  auth.onAuthStateChanged(user=>{
+    if(!user || user.email !== ADMIN_EMAIL){
+      alert("Not Authorized");
+      window.location.href="index.html";
+    }
+  });
+
+  function setResult(color){
+    db.collection("admin").doc("result").set({
+      color: color
+    }).then(()=>{
+      document.getElementById("msg").innerText =
+        "Result set to " + color;
+    });
+  }
+
+  function logout(){
+    auth.signOut().then(()=>{
+      window.location.href="index.html";
+    });
+  }
+</script>
+
+</body>
+</html>
