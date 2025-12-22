@@ -7,6 +7,7 @@
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
   <style>
     body{
@@ -57,38 +58,55 @@
 
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
+  const db = firebase.firestore();
 
-  // 🔐 ADMIN EMAIL (YAHI SE ADMIN CONTROL HOGA)
+  // 🔐 ADMIN EMAIL
   const ADMIN_EMAIL = "admin@gmail.com";
 
-  // ✅ AUTO REDIRECT AFTER LOGIN
+  // ✅ AUTO REDIRECT
   auth.onAuthStateChanged(user => {
     if(user){
       if(user.email === ADMIN_EMAIL){
-        window.location.href = "admin.html"; // 👑 ADMIN
+        window.location.href = "admin.html";
       }else{
-        window.location.href = "game.html";  // 🎮 USER
+        window.location.href = "game.html";
       }
     }
   });
 
+  // ✅ REGISTER + SAVE USER DATA (🔥 MAIN FIX 🔥)
   function register(){
     auth.createUserWithEmailAndPassword(
       email.value,
       password.value
     )
     .then((cred)=>{
-      if(cred.user.email === ADMIN_EMAIL){
-        window.location.href = "admin.html";
-      }else{
-        window.location.href = "game.html";
-      }
+
+      // 🔥 SAVE USER DATA TO FIRESTORE
+      db.collection("users").doc(cred.user.uid).set({
+        email: cred.user.email,
+        coins: 1000,
+        upi: "",
+        bank: "",
+        account: "",
+        ifsc: "",
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      }).then(()=>{
+
+        if(cred.user.email === ADMIN_EMAIL){
+          window.location.href = "admin.html";
+        }else{
+          window.location.href = "game.html";
+        }
+
+      });
     })
     .catch(e=>{
       msg.innerText = e.message;
     });
   }
 
+  // ✅ LOGIN
   function login(){
     auth.signInWithEmailAndPassword(
       email.value,
@@ -108,4 +126,4 @@
 </script>
 
 </body>
-</html>
+  </html>
