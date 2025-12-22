@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>User Profile - AC Colour Prediction</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    body{
+      background:#111;
+      color:#fff;
+      font-family:Arial;
+      text-align:center;
+      padding:20px;
+    }
+    input,button{
+      width:90%;
+      padding:12px;
+      margin:8px;
+      font-size:16px;
+    }
+    button{
+      background:#ff9800;
+      border:none;
+      font-weight:bold;
+      cursor:pointer;
+    }
+  </style>
+</head>
+
+<body>
+
+<h2>User Profile</h2>
+
+<input id="name" placeholder="Full Name">
+<input id="mobile" placeholder="Mobile Number">
+<input id="bankName" placeholder="Bank Name">
+<input id="accountNumber" placeholder="Account Number">
+<input id="ifsc" placeholder="IFSC Code">
+<input id="upi" placeholder="UPI ID (optional)">
+
+<button onclick="saveDetails()">Save Details</button>
+
+<p id="msg"></p>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
+    authDomain: "ac-colour-prediction.firebaseapp.com",
+    projectId: "ac-colour-prediction",
+    storageBucket: "ac-colour-prediction.appspot.com",
+    messagingSenderId: "471938348888",
+    appId: "1:471938348888:web:ac3fc3eb1939eb7cbe172d"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+
+  auth.onAuthStateChanged(user=>{
+    if(!user){
+      window.location.href="index.html";
+    }else{
+      loadDetails(user.uid);
+    }
+  });
+
+  function saveDetails(){
+    const user = auth.currentUser;
+    if(!user) return;
+
+    db.collection("userBankDetails").doc(user.uid).set({
+      name: document.getElementById("name").value,
+      mobile: document.getElementById("mobile").value,
+      bankName: document.getElementById("bankName").value,
+      accountNumber: document.getElementById("accountNumber").value,
+      ifsc: document.getElementById("ifsc").value,
+      upi: document.getElementById("upi").value,
+      createdAt: new Date()
+    }).then(()=>{
+      document.getElementById("msg").innerText = "Details saved successfully ✅";
+    });
+  }
+
+  function loadDetails(uid){
+    db.collection("userBankDetails").doc(uid).get().then(doc=>{
+      if(doc.exists){
+        const d = doc.data();
+        document.getElementById("name").value = d.name || "";
+        document.getElementById("mobile").value = d.mobile || "";
+        document.getElementById("bankName").value = d.bankName || "";
+        document.getElementById("accountNumber").value = d.accountNumber || "";
+        document.getElementById("ifsc").value = d.ifsc || "";
+        document.getElementById("upi").value = d.upi || "";
+      }
+    });
+  }
+</script>
+
+</body>
+</html>
