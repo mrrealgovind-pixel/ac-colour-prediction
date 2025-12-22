@@ -47,6 +47,7 @@
 <button class="logout" onclick="logout()">Logout</button>
 
 <script>
+  // 🔥 Firebase Config (READY)
   const firebaseConfig = {
     apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
     authDomain: "ac-colour-prediction.firebaseapp.com",
@@ -56,6 +57,7 @@
     appId: "1:471938348888:web:ac3fc3eb1939eb7cbe172d"
   };
 
+  // Initialize Firebase
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
   const db = firebase.firestore();
@@ -64,6 +66,7 @@
   let selectedColor = "";
   let time = 30;
 
+  // 🔒 Login protection & load coins
   auth.onAuthStateChanged(user=>{
     if(!user){
       window.location.href="index.html";
@@ -80,4 +83,66 @@
         coins = 1000;
         db.collection("users").doc(uid).set({ coins: coins });
       }
-      document
+      document.getElementById("coins").innerText = coins;
+    });
+  }
+
+  function bet(color){
+    if(coins < 50){
+      alert("Minimum 50 coins required");
+      return;
+    }
+    selectedColor = color;
+    document.getElementById("result").innerText =
+      "Bet placed on " + color;
+  }
+
+  // ⏱ Timer
+  setInterval(()=>{
+    time--;
+    document.getElementById("time").innerText = time;
+
+    if(time <= 0){
+      showResult();
+      time = 30;
+      document.getElementById("time").innerText = time;
+    }
+  },1000);
+
+  function showResult(){
+    // 🔴 Fetch live result from admin
+    db.collection("admin").doc("result").get().then(doc=>{
+      let winColor = "Red"; // default
+      if(doc.exists) winColor = doc.data().color;
+
+      if(selectedColor === winColor){
+        coins += 100;
+        document.getElementById("result").innerText =
+          "🎉 Result: " + winColor + " | YOU WIN!";
+      }else{
+        coins -= 50;
+        document.getElementById("result").innerText =
+          "❌ Result: " + winColor + " | YOU LOSE!";
+      }
+
+      document.getElementById("coins").innerText = coins;
+
+      // 🔄 Update coins in Firestore
+      const user = auth.currentUser;
+      if(user){
+        db.collection("users").doc(user.uid).update({ coins: coins });
+      }
+
+      selectedColor = "";
+    });
+  }
+
+  function logout(){
+    auth.signOut().then(()=>{
+      window.location.href="index.html";
+    });
+  }
+</script>
+
+</body>
+  </html>
