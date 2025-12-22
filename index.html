@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AC Colour Prediction</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
+  <style>
+    body{font-family:Arial;background:#111;color:#fff;text-align:center}
+    input,button{padding:12px;margin:8px;width:80%}
+    button{background:#ff9800;border:none;color:#000;font-weight:bold}
+  </style>
+</head>
+<body>
+
+<h2>AC Colour Prediction</h2>
+
+<input id="email" placeholder="Email">
+<input id="password" type="password" placeholder="Password">
+
+<button onclick="register()">Register</button>
+<button onclick="login()">Login</button>
+
+<p id="msg"></p>
+
+<script>
+  // 🔴 PASTE YOUR FIREBASE CONFIG HERE
+  const firebaseConfig = {
+    apiKey: "PASTE_HERE",
+    authDomain: "PASTE_HERE",
+    projectId: "PASTE_HERE",
+    appId: "PASTE_HERE"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+
+  function register(){
+    auth.createUserWithEmailAndPassword(
+      email.value, password.value
+    ).then(()=>{
+      msg.innerText="Registered successfully";
+    }).catch(e=>{
+      msg.innerText=e.message;
+    });
+  }
+
+  function login(){
+    auth.signInWithEmailAndPassword(
+      email.value, password.value
+    ).then(()=>{
+      msg.innerText="Login success";
+    }).catch(e=>{
+      msg.innerText=e.message;
+    });
+  }
+</script>
+
+</body>
+</html>
