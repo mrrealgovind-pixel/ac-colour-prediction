@@ -4,7 +4,7 @@
   <title>AC Colour Prediction - Login</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- Firebase SDK (COMPAT ONLY) -->
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 
@@ -45,7 +45,7 @@
 <p id="msg"></p>
 
 <script>
-  // 🔥 Firebase Config (READY)
+  // 🔥 Firebase Config
   const firebaseConfig = {
     apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
     authDomain: "ac-colour-prediction.firebaseapp.com",
@@ -55,40 +55,54 @@
     appId: "1:471938348888:web:ac3fc3eb1939eb7cbe172d"
   };
 
-  // Initialize Firebase
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
 
-  // ✅ AUTO REDIRECT IF ALREADY LOGIN
+  // 🔐 ADMIN EMAIL (YAHI SE ADMIN CONTROL HOGA)
+  const ADMIN_EMAIL = "admin@gmail.com";
+
+  // ✅ AUTO REDIRECT AFTER LOGIN
   auth.onAuthStateChanged(user => {
-    if (user) {
-      window.location.href = "game.html";
+    if(user){
+      if(user.email === ADMIN_EMAIL){
+        window.location.href = "admin.html"; // 👑 ADMIN
+      }else{
+        window.location.href = "game.html";  // 🎮 USER
+      }
     }
   });
 
   function register(){
     auth.createUserWithEmailAndPassword(
-      document.getElementById("email").value,
-      document.getElementById("password").value
+      email.value,
+      password.value
     )
-    .then(() => {
-      window.location.href = "game.html";
+    .then((cred)=>{
+      if(cred.user.email === ADMIN_EMAIL){
+        window.location.href = "admin.html";
+      }else{
+        window.location.href = "game.html";
+      }
     })
-    .catch(e => {
-      document.getElementById("msg").innerText = e.message;
+    .catch(e=>{
+      msg.innerText = e.message;
     });
   }
 
   function login(){
     auth.signInWithEmailAndPassword(
-      document.getElementById("email").value,
-      document.getElementById("password").value
+      email.value,
+      password.value
     )
-    .then(() => {
-      window.location.href = "game.html";
+    .then((cred)=>{
+      if(cred.user.email === ADMIN_EMAIL){
+        window.location.href = "admin.html";
+      }else{
+        window.location.href = "game.html";
+      }
     })
-    .catch(e => {
-      document.getElementById("msg").innerText = e.message;
+    .catch(e=>{
+      msg.innerText = e.message;
     });
   }
 </script>
