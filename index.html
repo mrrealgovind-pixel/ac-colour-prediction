@@ -3,6 +3,8 @@
 <head>
   <title>AC Colour Prediction</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Firebase SDK (ONLY COMPAT) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 
@@ -12,9 +14,7 @@
     button{background:#ff9800;border:none;color:#000;font-weight:bold}
   </style>
 </head>
-  <!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
 <body>
 
 <h2>AC Colour Prediction</h2>
@@ -28,61 +28,46 @@
 <p id="msg"></p>
 
 <script>
-  // 🔴 PASTE YOUR FIREBASE CONFIG HERE
+  // ✅ REAL FIREBASE CONFIG (ONLY ONE)
   const firebaseConfig = {
-    apiKey: "PASTE_HERE",
-    authDomain: "PASTE_HERE",
-    projectId: "PASTE_HERE",
-    appId: "PASTE_HERE"
+    apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
+    authDomain: "ac-colour-prediction.firebaseapp.com",
+    projectId: "ac-colour-prediction",
+    storageBucket: "ac-colour-prediction.appspot.com",
+    messagingSenderId: "471938348888",
+    appId: "1:471938348888:web:ac3fc3eb1939eb7cbe172d"
   };
 
+  // Initialize Firebase
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
 
   function register(){
     auth.createUserWithEmailAndPassword(
-      email.value, password.value
-    ).then(()=>{
-      msg.innerText="Registered successfully";
-    }).catch(e=>{
-      msg.innerText=e.message;
+      document.getElementById("email").value,
+      document.getElementById("password").value
+    )
+    .then(()=>{
+      document.getElementById("msg").innerText = "Registered successfully";
+    })
+    .catch(e=>{
+      document.getElementById("msg").innerText = e.message;
     });
   }
 
   function login(){
     auth.signInWithEmailAndPassword(
-      email.value, password.value
-    ).then(()=>{
-      msg.innerText="Login success";
-    }).catch(e=>{
-      msg.innerText=e.message;
+      document.getElementById("email").value,
+      document.getElementById("password").value
+    )
+    .then(()=>{
+      document.getElementById("msg").innerText = "Login successful";
+    })
+    .catch(e=>{
+      document.getElementById("msg").innerText = e.message;
     });
   }
 </script>
 
 </body>
 </html>
-<script>
-  // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-  
-  const firebaseConfig = {
-    apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
-  authDomain: "ac-colour-prediction.firebaseapp.com",
-  projectId: "ac-colour-prediction",
-  storageBucket: "ac-colour-prediction.firebasestorage.app",
-  messagingSenderId: "471938348888",
-  appId: "1:471938348888:web:ac3fc3eb1939eb7cbe172d",
-  measurementId: "G-QJ07DWRNYY"
-};
-
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-</script>
