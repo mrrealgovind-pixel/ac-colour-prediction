@@ -10,45 +10,15 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
   <style>
-    body{
-      background:#111;
-      color:#fff;
-      font-family:Arial;
-      text-align:center;
-      margin:0;
-      padding:0;
-    }
-    .top{
-      background:#000;
-      padding:10px;
-    }
-    .coins{
-      font-size:18px;
-      margin:10px;
-    }
-    .timer{
-      font-size:30px;
-      margin:20px;
-      color:#ff9800;
-    }
-    button{
-      padding:15px;
-      margin:10px;
-      width:80%;
-      font-size:18px;
-      border:none;
-      font-weight:bold;
-      cursor:pointer;
-    }
+    body{background:#111;color:#fff;font-family:Arial;text-align:center;margin:0}
+    .top{background:#000;padding:10px}
+    .coins{font-size:18px;margin:10px}
+    .timer{font-size:30px;margin:20px;color:#ff9800}
+    button{padding:15px;margin:10px;width:80%;font-size:18px;border:none;font-weight:bold}
     .red{background:red;color:#fff}
     .green{background:green;color:#fff}
     .violet{background:violet;color:#000}
-    .logout{
-      background:#fff;
-      color:#000;
-      width:40%;
-      margin-top:20px;
-    }
+    .logout{background:#fff;color:#000;width:40%}
   </style>
 </head>
 
@@ -77,7 +47,6 @@
 <button class="logout" onclick="logout()">Logout</button>
 
 <script>
-  // 🔥 Firebase Config
   const firebaseConfig = {
     apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
     authDomain: "ac-colour-prediction.firebaseapp.com",
@@ -95,7 +64,6 @@
   let selectedColor = "";
   let time = 30;
 
-  // 🔒 Login + Load Coins
   auth.onAuthStateChanged(user=>{
     if(!user){
       window.location.href="index.html";
@@ -110,68 +78,6 @@
         coins = doc.data().coins;
       }else{
         coins = 1000;
-        db.collection("users").doc(uid).set({
-          coins: coins
-        });
+        db.collection("users").doc(uid).set({ coins: coins });
       }
-      document.getElementById("coins").innerText = coins;
-    });
-  }
-
-  function bet(color){
-    if(coins < 50){
-      alert("Minimum 50 coins required");
-      return;
-    }
-    selectedColor = color;
-    document.getElementById("result").innerText =
-      "Bet placed on " + color;
-  }
-
-  // ⏱ Timer
-  setInterval(()=>{
-    time--;
-    document.getElementById("time").innerText = time;
-
-    if(time <= 0){
-      showResult();
-      time = 30;
-      document.getElementById("time").innerText = time;
-    }
-  },1000);
-
-  function showResult(){
-    let colors = ["Red","Green","Violet"];
-    let winColor = colors[Math.floor(Math.random()*3)];
-
-    if(selectedColor === winColor){
-      coins += 100;
-      document.getElementById("result").innerText =
-        "🎉 Result: " + winColor + " | YOU WIN!";
-    }else{
-      coins -= 50;
-      document.getElementById("result").innerText =
-        "❌ Result: " + winColor + " | YOU LOSE!";
-    }
-
-    document.getElementById("coins").innerText = coins;
-
-    const user = auth.currentUser;
-    if(user){
-      db.collection("users").doc(user.uid).update({
-        coins: coins
-      });
-    }
-
-    selectedColor = "";
-  }
-
-  function logout(){
-    auth.signOut().then(()=>{
-      window.location.href="index.html";
-    });
-  }
-</script>
-
-</body>
-</html>
+      document
