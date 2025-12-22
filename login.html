@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AC Colour Prediction - Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    body{
+      font-family: Arial;
+      background:#111;
+      color:#fff;
+      text-align:center;
+      padding-top:40px;
+    }
+    input,button{
+      padding:12px;
+      margin:8px;
+      width:80%;
+      font-size:16px;
+    }
+    button{
+      background:#ff9800;
+      border:none;
+      color:#000;
+      font-weight:bold;
+      cursor:pointer;
+    }
+  </style>
+</head>
+
+<body>
+
+<h2>AC Colour Prediction</h2>
+
+<input id="email" type="email" placeholder="Email">
+<input id="password" type="password" placeholder="Password">
+
+<button onclick="register()">Register</button>
+<button onclick="login()">Login</button>
+
+<p id="msg"></p>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
+    authDomain: "ac-colour-prediction.firebaseapp.com",
+    projectId: "ac-colour-prediction",
+    storageBucket: "ac-colour-prediction.appspot.com",
+    messagingSenderId: "471938348888",
+    appId: "1:471938348888:web:ac3fc3eb1939eb7cbe172d"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+
+  const auth = firebase.auth();
+  const db   = firebase.firestore();
+
+  const ADMIN_EMAIL = "admin@gmail.com";
+
+  function register(){
+    auth.createUserWithEmailAndPassword(email.value, password.value)
+    .then((cred)=>{
+      return db.collection("users").doc(cred.user.uid).set({
+        email: cred.user.email,
+        coins: 1000,
+        upi: "",
+        bankName: "",
+        accountNumber: "",
+        ifsc: "",
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    })
+    .then(()=>{
+      if(email.value === ADMIN_EMAIL){
+        window.location.href = "admin.html";
+      }else{
+        window.location.href = "game.html";
+      }
+    })
+    .catch(e=>{
+      msg.innerText = e.message;
+    });
+  }
+
+  function login(){
+    auth.signInWithEmailAndPassword(email.value, password.value)
+    .then((cred)=>{
+      if(cred.user.email === ADMIN_EMAIL){
+        window.location.href = "admin.html";
+      }else{
+        window.location.href = "game.html";
+      }
+    })
+    .catch(e=>{
+      msg.innerText = e.message;
+    });
+  }
+</script>
+
+</body>
+</html>
