@@ -1,4 +1,4 @@
-    <!DOCTYPE html>
+  <!DOCTYPE html>
 <html>
 <head>
   <title>Admin Panel - AC Colour Prediction</title>
@@ -47,21 +47,24 @@
 <button class="logout" onclick="logout()">Logout</button>
 
 <script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
-    authDomain: "ac-colour-prediction.firebaseapp.com",
-    projectId: "ac-colour-prediction",
-    storageBucket: "ac-colour-prediction.appspot.com",
-    messagingSenderId: "471938348888",
-    appId: "1:471938348888:web:ac3fc3eb1939eb7cbe172d"
+  // 🔥 Firebase Config
+  const firebaseConfig = {  
+    apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",  
+    authDomain: "ac-colour-prediction.firebaseapp.com",  
+    projectId: "ac-colour-prediction",  
+    storageBucket: "ac-colour-prediction.appspot.com",  
+    messagingSenderId: "471938348888",  
+    appId: "1:471938348888:web:ac3fc3eb1939eb7cbe172d"  
   };
 
+  // Initialize Firebase
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
   const db = firebase.firestore();
 
-  const ADMIN_EMAIL = "admin@gmail.com"; // 🔴 CHANGE IF NEEDED
+  const ADMIN_EMAIL = "admin@gmail.com"; // 🔴 Change if needed
 
+  // 🔒 Admin login check
   auth.onAuthStateChanged(user=>{
     if(!user || user.email !== ADMIN_EMAIL){
       alert("Not Authorized");
@@ -69,6 +72,7 @@
     }
   });
 
+  // 🔴 Set Result function
   function setResult(color){
     db.collection("admin").doc("result").set({
       color: color
@@ -78,6 +82,7 @@
     });
   }
 
+  // 🔴 Logout
   function logout(){
     auth.signOut().then(()=>{
       window.location.href="index.html";
@@ -86,4 +91,4 @@
 </script>
 
 </body>
-</html>
+    </html>
