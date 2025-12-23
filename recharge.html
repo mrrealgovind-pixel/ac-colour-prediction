@@ -2,69 +2,111 @@
 <html>
 <head>
 <title>Recharge</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
 <style>
 body{
-    font-family: Arial;
-    background:#0e0e0e;
+    background:#0f0f0f;
     color:#fff;
-    padding:20px;
+    font-family: Arial;
+    padding:15px;
 }
 .card{
-    background:#1a1a1a;
-    padding:20px;
+    background:#1c1c1c;
+    padding:15px;
     border-radius:10px;
-}
-button{
-    padding:10px 20px;
-    background:#00d46e;
-    border:none;
-    border-radius:6px;
-    color:#fff;
     margin-top:15px;
 }
-#upi{
-    background:#333;
+button{
+    width:100%;
+    padding:12px;
+    background:#00e676;
+    border:none;
+    border-radius:6px;
+    font-weight:bold;
+    margin-top:10px;
+}
+input{
+    width:100%;
     padding:10px;
     border-radius:6px;
-    display:block;
+    margin-top:10px;
 }
 </style>
+
 </head>
 
 <body>
 
-<h2>🔋 Recharge Coins</h2>
+<h2>💳 Recharge Coins</h2>
 
 <div class="card">
-    <h3>Amount: <span id="amt"></span></h3>
+    <h3>Recharge Amount: <span id="amountText"></span></h3>
+</div>
 
-    <p><b>Pay via UPI:</b></p>
-    <span id="upi">yourupi@bank</span>
-
-    <p>Upload Payment Screenshot:</p>
-    <input id="ss" type="file" accept="image/*">
-
-    <button onclick="submitRequest()">Submit Request</button>
+<div class="card">
+    <h3>📸 Upload Payment Screenshot</h3>
+    <input type="file" id="ss" accept="image/*">
+    <button onclick="submitRecharge()">Submit Recharge</button>
 </div>
 
 <script>
-/* Get Amount from Wallet Page */
-const params = new URLSearchParams(window.location.search);
-let amount = params.get("amount");
+/* ------------ Firebase Config ------------ */
+const firebaseConfig = {
+  apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
+  authDomain: "ac-colour-prediction.firebaseapp.com",
+  projectId: "ac-colour-prediction"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
 
-/* Show amount */
-document.getElementById("amt").innerText = amount;
+/* ------------ Get Amount from URL ------------ */
+const urlParams = new URLSearchParams(window.location.search);
+const amount = urlParams.get("amount");
+document.getElementById("amountText").innerText = amount;
 
-/* Submit Recharge (dummy function for now) */
-function submitRequest(){
-    if(!amount){
-        alert("Invalid Recharge!");
+/* ------------ Auth ------------ */
+let UID = "";
+auth.onAuthStateChanged(user=>{
+    if(!user) location.href = "index.html";
+    UID = user.uid;
+});
+
+/* ------------ Recharge Submit ------------ */
+async function submitRecharge(){
+    const fileInput = document.getElementById("ss");
+
+    if(!fileInput.files[0]){
+        alert("Please upload screenshot");
         return;
     }
 
-    alert("Recharge Request Submitted!");
+    // screenshot ko base64 convert
+    const reader = new FileReader();
+    reader.onload = async function(event){
+
+        const base64Img = event.target.result;
+
+        await db.collection("rechargeRequests").add({
+            uid: UID,
+            amount: Number(amount),
+            screenshot: base64Img,
+            status: "Pending",
+            time: new Date()
+        });
+
+        alert("Recharge Request Submitted! Admin will approve it.");
+        window.location.href = "wallet.html";
+    };
+
+    reader.readAsDataURL(fileInput.files[0]);
 }
 </script>
 
 </body>
-</html>
+    </html>
