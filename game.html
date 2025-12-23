@@ -3,10 +3,11 @@
 <head>
   <title>AC Colour Prediction</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <button onclick="window.location.href='profile.html'">
-  Profile / Bank Details
-  </button>
-<button onclick="location.href='wallet.html'">💰 Wallet</button>
+
+  <!-- Navigation Buttons -->
+  <button onclick="window.location.href='profile.html'">Profile / Bank Details</button>
+  <button onclick="location.href='wallet.html'">💰 Wallet</button>
+
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -17,9 +18,9 @@
     .header{background:#000;padding:12px;font-size:20px}
     .coins{margin:10px;color:#00e676;font-size:18px}
     .progress{width:90%;height:10px;background:#333;margin:auto;border-radius:5px}
-    .bar{height:100%;background:#ff9800;width:100%}
+    .bar{height:100%;background:#ff9800;width:100%;transition:0.3s}
     .history{margin:10px;font-size:18px}
-    select,button{padding:12px;margin:6px;width:80%;font-size:16px}
+    select,button{padding:12px;margin:6px;width:80%;font-size:16px;border:none;border-radius:6px}
     .red{background:#e53935;color:#fff}
     .green{background:#43a047;color:#fff}
     .violet{background:#8e24aa;color:#fff}
@@ -30,6 +31,7 @@
 <body>
 
 <div class="header">AC Colour Prediction</div>
+
 <div class="coins">Coins: <span id="coins">0</span></div>
 
 <div class="progress"><div class="bar" id="bar"></div></div>
@@ -47,6 +49,7 @@
 <button class="violet" onclick="bet('Violet')">VIOLET</button>
 
 <p id="msg"></p>
+
 <button class="logout" onclick="logout()">Logout</button>
 
 <!-- Sounds -->
@@ -54,6 +57,7 @@
 <audio id="loseSound" src="lose.mp3"></audio>
 
 <script>
+/* -------------------- FIREBASE SETUP -------------------- */
 const firebaseConfig = {
   apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
   authDomain: "ac-colour-prediction.firebaseapp.com",
@@ -64,67 +68,108 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-let coins=0, pick="", time=30;
+let coins = 0;
+let pick = "";
+let time = 30;
 
-auth.onAuthStateChanged(u=>{
-  if(!u) location.href="index.html";
-  else db.collection("users").doc(u.uid).get().then(d=>{
-    coins = d.exists ? d.data().coins : 1000;
-    document.getElementById("coins").innerText=coins;
-  });
+/* -------------------- AUTO LOGIN CHECK + USER CREATE -------------------- */
+auth.onAuthStateChanged(async (u) => {
+  if (!u) {
+    location.href = "index.html";
+    return;
+  }
+
+  const userRef = db.collection("users").doc(u.uid);
+  const docSnap = await userRef.get();
+
+  if (!docSnap.exists) {
+    // NEW USER — CREATE DOCUMENT
+    await userRef.set({
+      name: u.displayName || "",
+      email: u.email || "",
+      coins: 1000,
+      createdAt: new Date(),
+      bank: "",
+      account: "",
+      ifsc: "",
+      upi: ""
+    });
+  }
+
+  // LOAD USER DATA AFTER CREATE
+  const data = (await userRef.get()).data();
+  coins = data.coins || 0;
+  document.getElementById("coins").innerText = coins;
 });
 
-function bet(c){
-  pick=c;
-  msg.innerText="Selected "+c;
+/* -------------------- BET SELECT -------------------- */
+function bet(c) {
+  pick = c;
+  msg.innerText = "Selected: " + c;
 }
 
-setInterval(()=>{
+/* -------------------- 30 SECOND TIMER -------------------- */
+setInterval(() => {
   time--;
-  bar.style.width=(time/30*100)+"%";
-  if(time<=0){ result(); time=30; }
-},1000);
+  bar.style.width = (time / 30 * 100) + "%";
 
-async function result(){
+  if (time <= 0) {
+    result();
+    time = 30;
+  }
+}, 1000);
+
+/* -------------------- RESULT LOGIC -------------------- */
+async function result() {
+
+  // Read admin result
   let adminDoc = await db.collection("admin").doc("result").get();
-  let win = adminDoc.exists ? adminDoc.data().color :
-            ["Red","Green","Violet"][Math.floor(Math.random()*3)];
+  let winColor = adminDoc.exists
+      ? adminDoc.data().color
+      : ["Red", "Green", "Violet"][Math.floor(Math.random() * 3)];
 
   let betAmt = parseInt(betAmount.value);
 
-  if(pick===win){
-    coins+=betAmt*2;
+  if (pick === winColor) {
+    coins += betAmt * 2;
     winSound.play();
-    msg.innerText="🎉 WIN "+win;
-  }else{
-    coins-=betAmt;
+    msg.innerText = "🎉 WIN — " + winColor;
+  } else {
+    coins -= betAmt;
     loseSound.play();
-    msg.innerText="❌ LOSE "+win;
+    msg.innerText = "❌ LOSE — " + winColor;
   }
 
-  coins=Math.max(coins,0);
-  document.getElementById("coins").innerText=coins;
+  coins = Math.max(coins, 0);
+  document.getElementById("coins").innerText = coins;
 
-  const u=auth.currentUser;
-  if(u) db.collection("users").doc(u.uid).update({coins});
+  // Update Firestore
+  const u = auth.currentUser;
+  if (u) db.collection("users").doc(u.uid).update({ coins });
 
-  db.collection("rounds").add({result:win,time:new Date()});
+  db.collection("rounds").add({
+    result: winColor,
+    time: new Date()
+  });
+
   loadHistory();
-  pick="";
+  pick = "";
 }
 
-function loadHistory(){
-  db.collection("rounds").orderBy("time","desc").limit(10).get()
-  .then(s=>{
-    let h=[];
-    s.forEach(d=>h.push(d.data().result));
-    history.innerText="Last: "+h.join(" ");
-  });
+/* -------------------- LOAD HISTORY -------------------- */
+function loadHistory() {
+  db.collection("rounds").orderBy("time", "desc").limit(10).get()
+    .then(snap => {
+      let arr = [];
+      snap.forEach(doc => arr.push(doc.data().result));
+      history.innerText = "Last: " + arr.join(" ");
+    });
 }
 loadHistory();
 
-function logout(){
-  auth.signOut().then(()=>location.href="index.html");
+/* -------------------- LOGOUT -------------------- */
+function logout() {
+  auth.signOut().then(() => location.href = "index.html");
 }
 </script>
 
