@@ -3,7 +3,8 @@
 <head>
   <title>Admin Panel - AC Colour Prediction</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  
+
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -11,16 +12,17 @@
   <style>
     body{background:#111;color:#fff;font-family:Arial;padding:10px}
     h2,h3{text-align:center}
-    button{padding:8px;margin:5px;font-weight:bold}
+    button{padding:8px;margin:5px;font-weight:bold;border:none;border-radius:5px}
     table{width:100%;border-collapse:collapse;margin-top:10px}
     th,td{border:1px solid #555;padding:6px;text-align:center}
-    .red{background:red;color:#fff}
-    .green{background:green;color:#fff}
-    .violet{background:violet;color:#000}
+    .red{background:#e53935;color:#fff}
+    .green{background:#43a047;color:#fff}
+    .violet{background:#ba68c8;color:#000}
   </style>
 </head>
 
 <body>
+
 <h2>ADMIN PANEL</h2>
 
 <h3>🎯 Set Game Result</h3>
@@ -35,12 +37,13 @@
 
 <h3>💸 Withdrawal Requests</h3>
 <table id="withdrawTable">
-<tr><th>User</th><th>Coins</th><th>UPI</th><th>Status</th><th>Action</th></tr>
+<tr><th>Mobile</th><th>Coins</th><th>UPI</th><th>Status</th><th>Action</th></tr>
 </table>
 
 <button onclick="logout()">Logout</button>
 
 <script>
+// ---------------- FIREBASE CONFIG ----------------
 const firebaseConfig = {
   apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
   authDomain: "ac-colour-prediction.firebaseapp.com",
@@ -53,55 +56,121 @@ firebase.initializeApp(firebaseConfig);
 
 const auth = firebase.auth();
 const db = firebase.firestore();
+
+// ******** ADMIN NUMBER ********
 const ADMIN_MOBILE = "9999999999";
 
-auth.onAuthStateChanged(async user=>{
-  if(!user){ alert("Not Authorized"); location.href="index.html"; return; }
-  const doc = await db.collection("users").doc(user.uid).get();
-  if(doc.data().mobile !== ADMIN_MOBILE){ alert("Not Authorized"); location.href="index.html"; return; }
+
+// ---------------- ADMIN AUTH CHECK ----------------
+auth.onAuthStateChanged(async (user) => {
+  if (!user) {
+    alert("Not Authorized");
+    location.href = "index.html";
+    return;
+  }
+
+  const adminDoc = await db.collection("users").doc(user.uid).get();
+
+  if (!adminDoc.exists) {
+    alert("Admin profile not found!");
+    location.href = "index.html";
+    return;
+  }
+
+  const data = adminDoc.data();
+
+  // CHECK ADMIN BY MOBILE NUMBER
+  if (data.mobile !== ADMIN_MOBILE) {
+    alert("Not Authorized");
+    location.href = "index.html";
+    return;
+  }
+
+  // Authorized → load data
   loadUsers();
   loadWithdrawals();
 });
 
-function setResult(color){ db.collection("admin").doc("result").set({color}); alert("Result set: "+color); }
 
+// ---------------- SET RESULT ----------------
+function setResult(color){
+  db.collection("admin").doc("result").set({color});
+  alert("Result updated: " + color);
+}
+
+
+// ---------------- LOAD USERS ----------------
 function loadUsers(){
-  db.collection("users").onSnapshot(snap=>{
-    let html=`<tr><th>Mobile</th><th>Coins</th><th>UPI</th><th>Add Coins</th></tr>`;
-    snap.forEach(doc=>{
-      const d=doc.data();
-      html+=`<tr>
-        <td>${d.mobile||""}</td>
-        <td>${d.coins||0}</td>
-        <td>${d.upi||"-"}</td>
-        <td><button onclick="addCoins('${doc.id}')">+100</button></td>
-      </tr>`;
+  db.collection("users").onSnapshot(snap => {
+    let html = `<tr><th>Mobile</th><th>Coins</th><th>UPI</th><th>Add Coins</th></tr>`;
+    
+    snap.forEach(doc => {
+      const d = doc.data();
+      html += `
+        <tr>
+          <td>${d.mobile || "-"}</td>
+          <td>${d.coins || 0}</td>
+          <td>${d.upi || "-"}</td>
+          <td><button onclick="addCoins('${doc.id}')">+100</button></td>
+        </tr>
+      `;
     });
-    usersTable.innerHTML = html;
+
+    document.getElementById("usersTable").innerHTML = html;
   });
 }
 
-function addCoins(uid){ db.collection("users").doc(uid).update({coins: firebase.firestore.FieldValue.increment(100)}); }
 
+// ---------------- ADD COINS ----------------
+function addCoins(uid){
+  db.collection("users").doc(uid).update({
+    coins: firebase.firestore.FieldValue.increment(100)
+  });
+  alert("Coins added!");
+}
+
+
+// ---------------- LOAD WITHDRAWALS ----------------
 function loadWithdrawals(){
-  db.collection("withdrawals").onSnapshot(snap=>{
-    let html=`<tr><th>User</th><th>Coins</th><th>UPI</th><th>Status</th><th>Action</th></tr>`;
-    snap.forEach(doc=>{
-      const d=doc.data();
-      html+=`<tr>
-        <td>${d.mobile}</td>
-        <td>${d.coins}</td>
-        <td>${d.upi}</td>
-        <td>${d.status}</td>
-        <td>${d.status=="Pending"?`<button onclick="approve('${doc.id}')">Approve</button>`:""}</td>
-      </tr>`;
+  db.collection("withdrawals").onSnapshot(snap => {
+    let html = `<tr><th>Mobile</th><th>Coins</th><th>UPI</th><th>Status</th><th>Action</th></tr>`;
+    
+    snap.forEach(doc => {
+      const d = doc.data();
+      html += `
+        <tr>
+          <td>${d.mobile}</td>
+          <td>${d.coins}</td>
+          <td>${d.upi}</td>
+          <td>${d.status}</td>
+          <td>
+            ${d.status === "Pending" ? 
+              `<button onclick="approve('${doc.id}')">Approve</button>` 
+            : "✔️ Done"}
+          </td>
+        </tr>
+      `;
     });
-    withdrawTable.innerHTML = html;
+
+    document.getElementById("withdrawTable").innerHTML = html;
   });
 }
 
-function approve(id){ db.collection("withdrawals").doc(id).update({status:"Approved"}); }
-function logout(){ auth.signOut(); location.href="index.html"; }
+
+// ---------------- APPROVE WITHDRAW ----------------
+function approve(id){
+  db.collection("withdrawals").doc(id).update({status: "Approved"});
+  alert("Approved!");
+}
+
+
+// ---------------- LOGOUT ----------------
+function logout(){
+  auth.signOut();
+  location.href = "index.html";
+}
+
 </script>
+
 </body>
 </html>
