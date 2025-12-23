@@ -46,6 +46,7 @@
 <p id="msg"></p>
 
 <script>
+
   // 🔥 FIREBASE CONFIG
   const firebaseConfig = {
     apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
@@ -61,10 +62,10 @@
   const auth = firebase.auth();
   const db   = firebase.firestore();
 
-  // 🔐 ADMIN EMAIL (YAHI ADMIN HOGA)
+  // 🔐 ADMIN EMAIL
   const ADMIN_EMAIL = "admin@gmail.com";
 
-  // 🚫 AUTO REDIRECT TABHI JAB LOGIN HO
+  // 🔁 AUTO REDIRECT IF LOGGED IN
   auth.onAuthStateChanged(user => {
     if(user){
       if(user.email === ADMIN_EMAIL){
@@ -75,13 +76,19 @@
     }
   });
 
-  // ✅ REGISTER (USER DATA FIRESTORE ME SAVE HOGA)
+  // 🟢 REGISTER NEW USER
   function register(){
-    auth.createUserWithEmailAndPassword(
-      email.value,
-      password.value
-    )
+    let em = email.value.trim();
+    let pw = password.value.trim();
+
+    if(em === "" || pw === ""){
+      msg.innerText = "Please fill all fields";
+      return;
+    }
+
+    auth.createUserWithEmailAndPassword(em, pw)
     .then((cred)=>{
+      // 🔥 FIX: Coins, UPI, bank details save
       return db.collection("users").doc(cred.user.uid).set({
         uid: cred.user.uid,
         email: cred.user.email,
@@ -94,7 +101,8 @@
       });
     })
     .then(()=>{
-      if(email.value === ADMIN_EMAIL){
+      // Redirect
+      if(em === ADMIN_EMAIL){
         window.location.href = "admin.html";
       }else{
         window.location.href = "game.html";
@@ -105,12 +113,9 @@
     });
   }
 
-  // ✅ LOGIN
+  // 🔵 LOGIN USER
   function login(){
-    auth.signInWithEmailAndPassword(
-      email.value,
-      password.value
-    )
+    auth.signInWithEmailAndPassword(email.value, password.value)
     .then((cred)=>{
       if(cred.user.email === ADMIN_EMAIL){
         window.location.href = "admin.html";
@@ -122,6 +127,7 @@
       msg.innerText = e.message;
     });
   }
+
 </script>
 
 </body>
