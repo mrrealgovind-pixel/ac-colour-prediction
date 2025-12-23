@@ -1,53 +1,42 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>AC Colour Prediction - Mobile Login</title>
+  <title>AC Colour Prediction - Login</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  
-  <!-- Firebase SDK -->
+  <style>
+    body{font-family:Arial;text-align:center;padding-top:40px;background:#111;color:#fff;}
+    input,button{padding:12px;margin:8px;width:80%;font-size:16px;}
+    button{background:#ff9800;border:none;color:#000;font-weight:bold;cursor:pointer;}
+    #adminForm,#userForm{display:none;}
+  </style>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
-  <style>
-    body {
-      font-family: Arial;
-      background:#111;
-      color:#fff;
-      text-align:center;
-      padding-top:50px;
-    }
-    input, button {
-      padding:12px;
-      margin:10px;
-      width:80%;
-      font-size:16px;
-      border-radius:6px;
-      border:none;
-    }
-    button {
-      background:#ff9800;
-      color:#000;
-      font-weight:bold;
-      cursor:pointer;
-    }
-    p {margin-top:10px;}
-  </style>
 </head>
 <body>
 
 <h2>AC Colour Prediction</h2>
 
-<input id="mobile" type="text" placeholder="Enter Mobile Number" maxlength="10">
-<input id="password" type="password" placeholder="Password">
+<!-- Admin Login Form -->
+<div id="adminForm">
+  <h3>Admin Login</h3>
+  <input id="adminEmail" type="email" placeholder="Admin Email">
+  <input id="adminPassword" type="password" placeholder="Password">
+  <button onclick="adminLogin()">Login as Admin</button>
+  <p id="adminMsg"></p>
+</div>
 
-<button onclick="register()">Register</button>
-<button onclick="login()">Login</button>
-
-<p id="msg"></p>
+<!-- User Login Form -->
+<div id="userForm">
+  <h3>User Login</h3>
+  <input id="userMobile" type="text" placeholder="Mobile Number">
+  <input id="userPassword" type="password" placeholder="Password">
+  <button onclick="userLogin()">Login as User</button>
+  <p id="userMsg"></p>
+</div>
 
 <script>
-  // 🔥 Firebase Config
+  // ---------------- FIREBASE CONFIG ----------------
   const firebaseConfig = {
     apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
     authDomain: "ac-colour-prediction.firebaseapp.com",
@@ -56,87 +45,72 @@
     messagingSenderId: "471938348888",
     appId: "1:471938348888:web:ac3fc3eb1939eb7cbe172d"
   };
-
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
   const db = firebase.firestore();
 
-  const ADMIN_MOBILE = "9999999999"; // Admin mobile number
+  const ADMIN_EMAIL = "admin@gmail.com";
 
-  // 🔐 Auto redirect if logged in
-  auth.onAuthStateChanged(user => {
-    if(user){
-      db.collection("users").doc(user.uid).get().then(doc=>{
-        const mobile = doc.data().mobile;
-        if(mobile === ADMIN_MOBILE){
-          window.location.href = "admin.html";
+  // ---------------- SHOW FORM BASED ON URL ----------------
+  const urlParams = new URLSearchParams(window.location.search);
+  if(urlParams.get("admin") === "true"){
+    document.getElementById("adminForm").style.display="block";
+  } else {
+    document.getElementById("userForm").style.display="block";
+  }
+
+  // ---------------- ADMIN LOGIN ----------------
+  function adminLogin(){
+    const email = document.getElementById("adminEmail").value;
+    const password = document.getElementById("adminPassword").value;
+    auth.signInWithEmailAndPassword(email,password)
+      .then((cred)=>{
+        if(cred.user.email === ADMIN_EMAIL){
+          window.location.href="admin.html";
         } else {
-          window.location.href = "game.html";
+          document.getElementById("adminMsg").innerText="Not Authorized";
         }
-      });
+      })
+      .catch(e=>{document.getElementById("adminMsg").innerText=e.message;});
+  }
+
+  // ---------------- USER LOGIN ----------------
+  async function userLogin(){
+    const mobile = document.getElementById("userMobile").value;
+    const password = document.getElementById("userPassword").value;
+    
+    // Check Firestore if user exists
+    const userQuery = await db.collection("users").where("mobile","==",mobile).get();
+    if(userQuery.empty){
+      document.getElementById("userMsg").innerText="Mobile not registered";
+      return;
+    }
+
+    const userDoc = userQuery.docs[0];
+    const uid = userDoc.id;
+    const userData = userDoc.data();
+
+    // Sign in with custom email (mobile + domain trick)
+    const fakeEmail = mobile+"@mobile.com";
+    try{
+      await auth.signInWithEmailAndPassword(fakeEmail,password);
+      window.location.href="game.html";
+    } catch(e){
+      document.getElementById("userMsg").innerText=e.message;
+    }
+  }
+
+  // ---------------- AUTO REDIRECT IF LOGGED IN ----------------
+  auth.onAuthStateChanged(user=>{
+    if(user){
+      if(user.email === ADMIN_EMAIL){
+        window.location.href="admin.html";
+      } else {
+        window.location.href="game.html";
+      }
     }
   });
-
-  // ✅ Register
-  function register() {
-    const mobile = document.getElementById("mobile").value.trim();
-    const password = document.getElementById("password").value;
-
-    if(mobile.length !== 10 || isNaN(mobile)){
-      msg.innerText = "Enter valid 10-digit mobile number";
-      return;
-    }
-
-    // Create fake email for Firebase backend
-    const email = mobile + "@dummy.com";
-
-    auth.createUserWithEmailAndPassword(email, password)
-      .then(cred => {
-        return db.collection("users").doc(cred.user.uid).set({
-          uid: cred.user.uid,
-          mobile: mobile,
-          email: email,
-          coins: 1000,
-          bank: "",
-          account: "",
-          ifsc: "",
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-      })
-      .then(()=>{
-        if(mobile === ADMIN_MOBILE){
-          window.location.href = "admin.html";
-        } else {
-          window.location.href = "game.html";
-        }
-      })
-      .catch(e => { msg.innerText = e.message });
-  }
-
-  // ✅ Login
-  function login() {
-    const mobile = document.getElementById("mobile").value.trim();
-    const password = document.getElementById("password").value;
-
-    if(mobile.length !== 10 || isNaN(mobile)){
-      msg.innerText = "Enter valid 10-digit mobile number";
-      return;
-    }
-
-    const email = mobile + "@dummy.com";
-
-    auth.signInWithEmailAndPassword(email, password)
-      .then(cred => {
-        if(mobile === ADMIN_MOBILE){
-          window.location.href = "admin.html";
-        } else {
-          window.location.href = "game.html";
-        }
-      })
-      .catch(e => { msg.innerText = e.message });
-  }
 </script>
 
 </body>
-</html>
-    
+  </html>
