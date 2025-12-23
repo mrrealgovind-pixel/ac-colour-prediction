@@ -1,8 +1,14 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>AC Colour Prediction - Admin Login</title>
+  <title>AC Colour Prediction - Login</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
   <style>
     body{
       font-family: Arial;
@@ -29,19 +35,20 @@
 
 <body>
 
-<h2>AC Colour Prediction - Admin Login</h2>
+<h2>AC Colour Prediction</h2>
 
-<input id="email" type="email" placeholder="Admin Email">
-<input id="password" type="password" placeholder="Password">
+<!-- Admin Email Login -->
+<input id="adminEmail" type="email" placeholder="Admin Email (Only Admin)">
+<input id="adminPassword" type="password" placeholder="Password">
+<button onclick="adminLogin()">Admin Login</button>
 
-<button onclick="login()">Login</button>
+<hr style="margin:20px 0; border-color:#555;">
+
+<!-- User Mobile Login -->
+<input id="userMobile" type="text" placeholder="Mobile Number (+91xxxxxx)">
+<button onclick="userLogin()">User Login (OTP Simulated)</button>
 
 <p id="msg"></p>
-
-<!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
 <script>
   // 🔥 Firebase Config
@@ -55,34 +62,65 @@
   };
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
+  const db = firebase.firestore();
 
   const ADMIN_EMAIL = "admin@gmail.com";
 
-  // 🔐 Auto redirect if already logged in
-  auth.onAuthStateChanged(user => {
+  // -------------------- ADMIN LOGIN --------------------
+  function adminLogin(){
+    const email = adminEmail.value.trim();
+    const password = adminPassword.value.trim();
+
+    if(email !== ADMIN_EMAIL){
+      msg.innerText = "Only admin can login here.";
+      return;
+    }
+
+    auth.signInWithEmailAndPassword(email,password)
+      .then(()=> { window.location.href="admin.html"; })
+      .catch(e=> { msg.innerText = e.message; });
+  }
+
+  // -------------------- USER MOBILE LOGIN --------------------
+  async function userLogin(){
+    const mobile = userMobile.value.trim();
+    if(!mobile.match(/^\+?\d{10,15}$/)){
+      msg.innerText = "Enter valid mobile number with country code.";
+      return;
+    }
+
+    // ✅ Check if user already exists
+    let userDoc = await db.collection("users").where("mobile","==",mobile).get();
+    let uid;
+    if(userDoc.empty){
+      // 🔥 New user, create
+      uid = "USER_" + Date.now();
+      await db.collection("users").doc(uid).set({
+        uid: uid,
+        mobile: mobile,
+        coins: 1000,
+        upi: "",
+        bankName: "",
+        accountNumber: "",
+        ifsc: "",
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } else {
+      uid = userDoc.docs[0].id;
+    }
+
+    // 🔐 Simulated login
+    sessionStorage.setItem("uid", uid);
+    sessionStorage.setItem("mobile", mobile);
+    window.location.href="game.html";
+  }
+
+  // -------------------- AUTO REDIRECT IF ALREADY LOGGED IN --------------------
+  auth.onAuthStateChanged(user=>{
     if(user && user.email === ADMIN_EMAIL){
-      window.location.href = "admin.html";
+      window.location.href="admin.html";
     }
   });
-
-  // ✅ Admin login
-  function login(){
-    auth.signInWithEmailAndPassword(
-      email.value,
-      password.value
-    )
-    .then((cred)=>{
-      if(cred.user.email === ADMIN_EMAIL){
-        window.location.href = "admin.html";
-      } else {
-        msg.innerText = "Not authorized!";
-        auth.signOut();
-      }
-    })
-    .catch(e=>{
-      msg.innerText = e.message;
-    });
-  }
 </script>
 
 </body>
