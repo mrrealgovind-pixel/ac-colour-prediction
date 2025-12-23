@@ -1,4 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AC Colour Prediction - Game</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    body{margin:0;font-family:Arial;background:#0f0f0f;color:#fff;text-align:center;}
+    .top-buttons{margin:10px;}
+    .top-buttons button{padding:10px 15px;margin:5px;background:#222;color:#fff;border:none;border-radius:8px;cursor:pointer;}
+    .header{font-size:22px;padding:12px;background:#000;margin-bottom:10px;}
+    .coins{font-size:18px;color:#00ff90;margin:8px;}
+    .history{margin:10px;display:flex;justify-content:center;flex-wrap:wrap;gap:6px;}
+    .bubble{padding:8px 12px;border-radius:50%;color:#fff;font-weight:bold;width:40px;height:40px;display:flex;align-items:center;justify-content:center;}
+    .red{background:#e53935;}
+    .green{background:#43a047;}
+    .violet{background:#8e24aa;}
+    select,button{padding:12px;margin:6px;width:80%;font-size:16px;border:none;border-radius:6px;cursor:pointer;}
+    .bet-btn{font-weight:bold;font-size:18px;transition:0.3s;}
+    .bet-btn:hover{transform:scale(1.1);}
+    #bar-container{width:90%;height:12px;background:#333;margin:10px auto;border-radius:6px;overflow:hidden;}
+    #bar{height:100%;width:100%;background:#ff9800;transition:0.3s;}
+    .msg{margin:12px;font-size:18px;}
+    .logout{background:#fff;color:#000;width:40%;margin-top:12px;}
+  </style>
+</head>
+
+<body>
+
+<div class="top-buttons">
+  <button onclick="location.href='profile.html'">Profile / Bank</button>
+  <button onclick="location.href='wallet.html'">💰 Wallet</button>
+  <button onclick="location.href='history.html'">📜 History</button>
+</div>
+
+<div class="header">AC Colour Prediction</div>
+<div class="coins">Coins: <span id="coins">0</span></div>
+
+<div id="bar-container"><div id="bar"></div></div>
+
+<div class="history" id="history"></div>
+
+<select id="betAmount">
+  <option value="50">Bet 50</option>
+  <option value="100">Bet 100</option>
+  <option value="500">Bet 500</option>
+</select>
+
+<div>
+  <button class="bet-btn red" onclick="bet('Red')">RED</button>
+  <button class="bet-btn green" onclick="bet('Green')">GREEN</button>
+  <button class="bet-btn violet" onclick="bet('Violet')">VIOLET</button>
+</div>
+
+<div class="msg" id="msg"></div>
+<button class="logout" onclick="logout()">Logout</button>
+
+<audio id="winSound" src="win.mp3"></audio>
+<audio id="loseSound" src="lose.mp3"></audio>
+
+
 <script>
+/* -------------------- FIREBASE INIT -------------------- */
 const firebaseConfig = {
   apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
   authDomain: "ac-colour-prediction.firebaseapp.com",
@@ -16,18 +83,18 @@ let coins = 0;
 let pick = "";
 let time = 30;
 
-/* -------------------- AUTO LOGIN + CREATE USER -------------------- */
+/* -------------------- AUTO LOGIN -------------------- */
 auth.onAuthStateChanged(async (u) => {
   if (!u) { location.href="index.html"; return; }
 
   const userRef = db.collection("users").doc(u.uid);
-  const docSnap = await userRef.get();
+  const snap = await userRef.get();
 
-  if (!docSnap.exists) {
+  if (!snap.exists) {
     await userRef.set({
-     	email: u.email,
-      	coins: 1000,
-      	createdAt: new Date()
+      email: u.email,
+      coins: 1000,
+      createdAt: new Date()
     });
   }
 
@@ -36,7 +103,7 @@ auth.onAuthStateChanged(async (u) => {
   document.getElementById("coins").innerText = coins;
 });
 
-/* -------------------- BET -------------------- */
+/* -------------------- BET SELECT -------------------- */
 function bet(color) {
   pick = color;
   msg.innerText = "Selected: " + color;
@@ -45,26 +112,26 @@ function bet(color) {
 /* -------------------- TIMER -------------------- */
 setInterval(() => {
   time--;
-  document.getElementById("bar").style.width = (time/30*100) + "%";
-  if(time <= 0){ result(); time = 30; }
+  document.getElementById("bar").style.width = (time / 30 * 100) + "%";
+  if (time <= 0) { result(); time = 30; }
 }, 1000);
 
 /* -------------------- RESULT -------------------- */
-async function result(){
-  const adminDoc = await db.collection("admin").doc("result").get();
-  const winColor = adminDoc.exists ? adminDoc.data().color : ["Red","Green","Violet"][Math.floor(Math.random()*3)];
+async function result() {
+  const adminSnap = await db.collection("admin").doc("result").get();
+  const winColor = adminSnap.exists ? adminSnap.data().color : ["Red","Green","Violet"][Math.floor(Math.random()*3)];
 
   const betAmt = parseInt(betAmount.value);
   let change = 0;
   let status = "";
 
-  if(pick === winColor){
+  if (pick === winColor) {
     change = betAmt * 2;
     coins += change;
     winSound.play();
     status = "WIN";
     msg.innerText = "🎉 WIN — " + winColor;
-  }else{
+  } else {
     change = -betAmt;
     coins -= betAmt;
     loseSound.play();
@@ -72,47 +139,57 @@ async function result(){
     msg.innerText = "❌ LOSE — " + winColor;
   }
 
-  coins = Math.max(coins,0);
+  coins = Math.max(coins, 0);
   document.getElementById("coins").innerText = coins;
 
   const u = auth.currentUser;
-  if(u){
-    db.collection("users").doc(u.uid).update({coins});
 
-    // ✅ SAVE TRANSACTION HISTORY
+  if (u) {
+    db.collection("users").doc(u.uid).update({ coins });
+
+    // SAVE TRANSACTION HISTORY
     db.collection("transactions").add({
       uid: u.uid,
       type: status,
-      amount: change,
       bet: betAmt,
       color: winColor,
       pick: pick,
+      amount: change,
       time: new Date()
     });
   }
 
-  db.collection("rounds").add({result:winColor,time:new Date()});
+  // SAVE ROUND
+  db.collection("rounds").add({
+    result: winColor,
+    time: new Date()
+  });
+
   loadHistory();
   pick = "";
 }
 
-/* -------------------- LOAD HISTORY -------------------- */
-async function loadHistory(){
-  const snap = await db.collection("rounds").orderBy("time","desc").limit(10).get();
-  const historyEl = document.getElementById("history");
-  historyEl.innerHTML = "";
-  snap.forEach(doc=>{
+/* -------------------- HISTORY BUBBLES -------------------- */
+async function loadHistory() {
+  const snap = await db.collection("rounds").orderBy("time", "desc").limit(10).get();
+  const h = document.getElementById("history");
+  h.innerHTML = "";
+
+  snap.forEach(doc => {
     const c = doc.data().result;
     const div = document.createElement("div");
     div.className = `bubble ${c.toLowerCase()}`;
     div.innerText = c[0];
-    historyEl.appendChild(div);
+    h.appendChild(div);
   });
 }
 loadHistory();
 
 /* -------------------- LOGOUT -------------------- */
-function logout(){
-  auth.signOut().then(()=>location.href="index.html");
+function logout() {
+  auth.signOut().then(() => location.href = "index.html");
 }
-  </script>
+</script>
+
+</body>
+</html>
