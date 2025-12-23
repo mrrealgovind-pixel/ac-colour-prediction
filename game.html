@@ -40,6 +40,7 @@
 <div class="coins">Coins: <span id="coins">0</span></div>
 
 <div id="bar-container"><div id="bar"></div></div>
+
 <div class="history" id="history"></div>
 
 <select id="betAmount">
@@ -70,106 +71,106 @@ const firebaseConfig = {
   appId: "1:471938348888:web:ac3fc3eb1939eb7cbe172d"
 };
 firebase.initializeApp(firebaseConfig);
+
 const auth = firebase.auth();
 const db = firebase.firestore();
 
 let coins = 0;
 let pick = "";
 let time = 30;
-let betAmt = 0;
 
+// -------------------- AUTO LOGIN --------------------
 auth.onAuthStateChanged(async (u) => {
-  if (!u) { location.href="index.html"; return; }
+  if(!u) { location.href="index.html"; return; }
+
   const userRef = db.collection("users").doc(u.uid);
   const docSnap = await userRef.get();
 
-  if (!docSnap.exists) {
-    await userRef.set({
-      email: u.email,
-      coins: 1000,
-      createdAt: new Date(),
-      upi: "",
-      bank: "",
-      account: "",
-      ifsc: ""
-    });
+  if(!docSnap.exists){
+    await userRef.set({email:u.email, coins:1000, createdAt:new Date(), upi:"", bank:"", account:"", ifsc:""});
   }
-  const data = (await userRef.get()).data();
-  coins = data.coins || 0;
+
+  coins = (await userRef.get()).data().coins || 0;
   document.getElementById("coins").innerText = coins;
 });
 
+// -------------------- BET --------------------
 function bet(color){
   pick = color;
-  msg.innerText = "Selected: " + color;
-  betAmt = parseInt(document.getElementById("betAmount").value);
+  document.getElementById("msg").innerText = "Selected: " + color;
 }
 
-setInterval(() => {
-  time--;
-  document.getElementById("bar").style.width = (time/30*100) + "%";
-  if(time <= 0){ playResult(); time=30; }
+// -------------------- TIMER --------------------
+setInterval(()=>{ 
+  time--; 
+  document.getElementById("bar").style.width = (time/30*100) + "%"; 
+  if(time <= 0){ runResult(); time = 30; } 
 },1000);
 
-async function playResult(){
-  if(!pick) return;
-
+// -------------------- RESULT --------------------
+async function runResult(){
   const adminDoc = await db.collection("admin").doc("result").get();
-  const winColor = adminDoc.exists ? adminDoc.data().color : ["Red","Green","Violet"][Math.floor(Math.random()*3)];
+  let winColor = adminDoc.exists && adminDoc.data().color ? adminDoc.data().color : null;
 
-  let win = pick === winColor;
-  if(win){
+  // Agar admin set nahi kiya to random color
+  if(!winColor){
+    const colors = ["Red","Green","Violet"];
+    winColor = colors[Math.floor(Math.random()*3)];
+  }
+
+  const betAmt = parseInt(document.getElementById("betAmount").value);
+
+  if(pick === winColor){
     coins += betAmt*2;
-    winSound.play();
-    msg.innerText = "🎉 WIN — " + winColor;
+    document.getElementById("winSound").play();
+    document.getElementById("msg").innerText = "🎉 WIN — " + winColor;
   } else {
     coins -= betAmt;
-    loseSound.play();
-    msg.innerText = "❌ LOSE — " + winColor;
+    document.getElementById("loseSound").play();
+    document.getElementById("msg").innerText = "❌ LOSE — " + winColor;
   }
+
   coins = Math.max(coins,0);
   document.getElementById("coins").innerText = coins;
 
   const u = auth.currentUser;
   if(u){
     db.collection("users").doc(u.uid).update({coins});
-    db.collection("rounds").add({
-      uid: u.uid,
-      pick,
-      bet: betAmt,
-      result: winColor,
-      win,
-      time: new Date()
-    });
-    // Save to transactions
     db.collection("transactions").add({
-      uid: u.uid,
-      type: "Game",
-      color: pick,
+      uid:u.uid,
       bet: betAmt,
+      color: pick || "No Pick",
       result: winColor,
-      win,
+      win: pick===winColor,
       time: new Date()
     });
   }
-  pick="";
+
+  // Round history
+  db.collection("rounds").add({result:winColor,time:new Date()});
   loadHistory();
+  pick = "";
 }
 
+// -------------------- LOAD HISTORY --------------------
 async function loadHistory(){
   const snap = await db.collection("rounds").orderBy("time","desc").limit(10).get();
   const historyEl = document.getElementById("history");
-  historyEl.innerHTML="";
+  historyEl.innerHTML = "";
   snap.forEach(doc=>{
     const c = doc.data().result;
     const div = document.createElement("div");
     div.className = `bubble ${c.toLowerCase()}`;
-    div.innerText = c[0]; 
+    div.innerText = c[0];
     historyEl.appendChild(div);
   });
 }
+loadHistory();
 
-function logout(){ auth.signOut().then(()=>location.href="index.html"); }
+// -------------------- LOGOUT --------------------
+function logout(){
+  auth.signOut().then(()=>location.href="index.html");
+}
 </script>
 
 </body>
