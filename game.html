@@ -4,17 +4,29 @@
   <title>AC Colour Prediction</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- Navigation Buttons -->
-  <button onclick="window.location.href='profile.html'">Profile / Bank Details</button>
-  <button onclick="location.href='wallet.html'">💰 Wallet</button>
-
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
   <style>
-    body{margin:0;background:#0f0f0f;color:#fff;font-family:Arial;text-align:center}
+    body{margin:0;background:#0f0f0f;color:#fff;
+         font-family:Arial;text-align:center}
+
+    .top-buttons{
+      margin-top:10px;
+    }
+
+    .top-buttons button{
+      padding:10px 20px;
+      background:#222;
+      color:#fff;
+      border:none;
+      border-radius:6px;
+      margin:5px;
+      font-size:14px;
+    }
+
     .header{background:#000;padding:12px;font-size:20px}
     .coins{margin:10px;color:#00e676;font-size:18px}
     .progress{width:90%;height:10px;background:#333;margin:auto;border-radius:5px}
@@ -29,6 +41,12 @@
 </head>
 
 <body>
+
+<!-- TOP NAVIGATION -->
+<div class="top-buttons">
+  <button onclick="location.href='profile.html'">Profile / Bank Details</button>
+  <button onclick="location.href='wallet.html'">💰 Wallet</button>
+</div>
 
 <div class="header">AC Colour Prediction</div>
 
@@ -61,7 +79,10 @@
 const firebaseConfig = {
   apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
   authDomain: "ac-colour-prediction.firebaseapp.com",
-  projectId: "ac-colour-prediction"
+  projectId: "ac-colour-prediction",
+  storageBucket: "ac-colour-prediction.appspot.com",
+  messagingSenderId: "471938348888",
+  appId: "1:471938348888:web:ac3fc3eb1939eb7cbe172d"
 };
 firebase.initializeApp(firebaseConfig);
 
@@ -83,20 +104,17 @@ auth.onAuthStateChanged(async (u) => {
   const docSnap = await userRef.get();
 
   if (!docSnap.exists) {
-    // NEW USER — CREATE DOCUMENT
     await userRef.set({
-      name: u.displayName || "",
-      email: u.email || "",
+      email: u.email,
       coins: 1000,
       createdAt: new Date(),
+      upi: "",
       bank: "",
       account: "",
-      ifsc: "",
-      upi: ""
+      ifsc: ""
     });
   }
 
-  // LOAD USER DATA AFTER CREATE
   const data = (await userRef.get()).data();
   coins = data.coins || 0;
   document.getElementById("coins").innerText = coins;
@@ -112,7 +130,6 @@ function bet(c) {
 setInterval(() => {
   time--;
   bar.style.width = (time / 30 * 100) + "%";
-
   if (time <= 0) {
     result();
     time = 30;
@@ -122,11 +139,10 @@ setInterval(() => {
 /* -------------------- RESULT LOGIC -------------------- */
 async function result() {
 
-  // Read admin result
   let adminDoc = await db.collection("admin").doc("result").get();
   let winColor = adminDoc.exists
-      ? adminDoc.data().color
-      : ["Red", "Green", "Violet"][Math.floor(Math.random() * 3)];
+    ? adminDoc.data().color
+    : ["Red","Green","Violet"][Math.floor(Math.random()*3)];
 
   let betAmt = parseInt(betAmount.value);
 
@@ -143,9 +159,10 @@ async function result() {
   coins = Math.max(coins, 0);
   document.getElementById("coins").innerText = coins;
 
-  // Update Firestore
   const u = auth.currentUser;
-  if (u) db.collection("users").doc(u.uid).update({ coins });
+  if (u) {
+    db.collection("users").doc(u.uid).update({ coins });
+  }
 
   db.collection("rounds").add({
     result: winColor,
@@ -158,12 +175,11 @@ async function result() {
 
 /* -------------------- LOAD HISTORY -------------------- */
 function loadHistory() {
-  db.collection("rounds").orderBy("time", "desc").limit(10).get()
-    .then(snap => {
-      let arr = [];
-      snap.forEach(doc => arr.push(doc.data().result));
-      history.innerText = "Last: " + arr.join(" ");
-    });
+  db.collection("rounds").orderBy("time", "desc").limit(10).get().then(snap => {
+    let arr = [];
+    snap.forEach(doc => arr.push(doc.data().result));
+    history.innerText = "Last: " + arr.join(" ");
+  });
 }
 loadHistory();
 
