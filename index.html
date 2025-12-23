@@ -1,36 +1,52 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>User Registration</title>
+  <title>AC Colour Prediction - Login</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
   <style>
-    body{ font-family:Arial; background:#111; color:#fff; text-align:center; padding-top:40px; }
-    input,button{ padding:12px; margin:8px; width:80%; font-size:16px; }
-    button{ background:#4caf50; border:none; font-weight:bold; cursor:pointer; }
-    .box{ background:#222; width:90%; max-width:350px; padding:20px; margin:auto; border-radius:10px; }
+    body{
+      font-family: Arial;
+      background:#111;
+      color:#fff;
+      text-align:center;
+      padding-top:40px;
+    }
+    input,button{
+      padding:12px;
+      margin:8px;
+      width:80%;
+      font-size:16px;
+    }
+    button{
+      background:#ff9800;
+      border:none;
+      color:#000;
+      font-weight:bold;
+      cursor:pointer;
+    }
   </style>
 </head>
 
 <body>
 
-<h2>User Registration</h2>
+<h2>AC Colour Prediction</h2>
 
-<div class="box">
-  <input id="mobile" type="text" placeholder="Mobile Number">
-  <input id="password" type="password" placeholder="Password">
+<input id="email" type="email" placeholder="Email">
+<input id="password" type="password" placeholder="Password">
 
-  <button onclick="registerUser()">Register</button>
-  <p id="msg"></p>
+<button onclick="register()">Register</button>
+<button onclick="login()">Login</button>
 
-  <a style="color:#0af" href="index.html">Already have account? Login</a>
-</div>
+<p id="msg"></p>
 
 <script>
+  // 🔥 FIREBASE CONFIG
   const firebaseConfig = {
     apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
     authDomain: "ac-colour-prediction.firebaseapp.com",
@@ -43,37 +59,68 @@
   firebase.initializeApp(firebaseConfig);
 
   const auth = firebase.auth();
-  const db = firebase.firestore();
+  const db   = firebase.firestore();
 
-  async function registerUser(){
-    const mobile = mobile.value;
-    const pass   = password.value;
+  // 🔐 ADMIN EMAIL (YAHI ADMIN HOGA)
+  const ADMIN_EMAIL = "admin@gmail.com";
 
-    if(mobile.length !== 10){
-      msg.innerText = "Enter valid mobile number";
-      return;
+  // 🚫 AUTO REDIRECT TABHI JAB LOGIN HO
+  auth.onAuthStateChanged(user => {
+    if(user){
+      if(user.email === ADMIN_EMAIL){
+        window.location.href = "admin.html";
+      }else{
+        window.location.href = "game.html";
+      }
     }
+  });
 
-    let fakeEmail = mobile + "@mobile.com";
-
-    auth.createUserWithEmailAndPassword(fakeEmail, pass)
-    .then(cred=>{
+  // ✅ REGISTER (USER DATA FIRESTORE ME SAVE HOGA)
+  function register(){
+    auth.createUserWithEmailAndPassword(
+      email.value,
+      password.value
+    )
+    .then((cred)=>{
       return db.collection("users").doc(cred.user.uid).set({
         uid: cred.user.uid,
-        mobile: mobile,
+        email: cred.user.email,
         coins: 1000,
         upi: "",
-        bank: "",
-        account: "",
+        bankName: "",
+        accountNumber: "",
         ifsc: "",
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
     })
     .then(()=>{
-      msg.innerText = "Registration successful!";
-      location.href = "game.html";
+      if(email.value === ADMIN_EMAIL){
+        window.location.href = "admin.html";
+      }else{
+        window.location.href = "game.html";
+      }
     })
-    .catch(e=> msg.innerText = e.message);
+    .catch(e=>{
+      msg.innerText = e.message;
+    });
+  }
+
+  // ✅ LOGIN
+  function login(){
+    auth.signInWithEmailAndPassword(
+      email.value,
+      password.value
+    )
+    .then((cred)=>{
+      if(cred.user.email === ADMIN_EMAIL){
+        window.location.href = "admin.html";
+      }else{
+        window.location.href = "game.html";
+      }
+    })
+    .catch(e=>{
+      msg.innerText = e.message;
+    });
   }
 </script>
 
