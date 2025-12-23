@@ -1,175 +1,81 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Admin Panel - AC Colour Prediction</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Login</title>
 
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <!-- Firebase Links -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js"></script>
 
-  <style>
-    body{background:#111;color:#fff;font-family:Arial;padding:10px}
-    h2,h3{text-align:center}
-    button{padding:8px;margin:5px;font-weight:bold;border:none;border-radius:5px}
-    table{width:100%;border-collapse:collapse;margin-top:10px}
-    th,td{border:1px solid #555;padding:6px;text-align:center}
-    .red{background:#e53935;color:#fff}
-    .green{background:#43a047;color:#fff}
-    .violet{background:#ba68c8;color:#000}
-  </style>
+    <style>
+        body {
+            font-family: Arial;
+            background: #f1f1f1;
+            padding: 20px;
+        }
+        .box {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            max-width: 350px;
+            margin: auto;
+            margin-top: 50px;
+            box-shadow: 0 0 10px #ddd;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: black;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+    </style>
 </head>
 
 <body>
 
-<h2>ADMIN PANEL</h2>
+<div class="box">
+    <h2>Admin Login</h2>
 
-<h3>🎯 Set Game Result</h3>
-<button class="red" onclick="setResult('Red')">RED</button>
-<button class="green" onclick="setResult('Green')">GREEN</button>
-<button class="violet" onclick="setResult('Violet')">VIOLET</button>
+    <input id="email" type="email" placeholder="Admin Email" />
+    <input id="password" type="password" placeholder="Password" />
 
-<h3>👥 Users</h3>
-<table id="usersTable">
-<tr><th>Mobile</th><th>Coins</th><th>UPI</th><th>Add Coins</th></tr>
-</table>
+    <button onclick="loginAdmin()">Login</button>
 
-<h3>💸 Withdrawal Requests</h3>
-<table id="withdrawTable">
-<tr><th>Mobile</th><th>Coins</th><th>UPI</th><th>Status</th><th>Action</th></tr>
-</table>
-
-<button onclick="logout()">Logout</button>
+    <p id="msg" style="color:red;"></p>
+</div>
 
 <script>
-// ---------------- FIREBASE CONFIG ----------------
-const firebaseConfig = {
-  apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
-  authDomain: "ac-colour-prediction.firebaseapp.com",
-  projectId: "ac-colour-prediction",
-  storageBucket: "ac-colour-prediction.appspot.com",
-  messagingSenderId: "471938348888",
-  appId: "1:471938348888:web:ac3fc3eb1939eb7cbe172d"
-};
-firebase.initializeApp(firebaseConfig);
+    // Your Firebase Config
+    const firebaseConfig = {
+        apiKey: "YOUR_KEY",
+        authDomain: "YOUR_DOMAIN",
+        projectId: "YOUR_PROJECT",
+    };
 
-const auth = firebase.auth();
-const db = firebase.firestore();
+    const app = firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
 
-// ******** ADMIN NUMBER ********
-const ADMIN_MOBILE = "9999999999";
+    function loginAdmin() {
+        const email = document.getElementById("email").value;
+        const pass = document.getElementById("password").value;
 
-
-// ---------------- ADMIN AUTH CHECK ----------------
-auth.onAuthStateChanged(async (user) => {
-  if (!user) {
-    alert("Not Authorized");
-    location.href = "index.html";
-    return;
-  }
-
-  const adminDoc = await db.collection("users").doc(user.uid).get();
-
-  if (!adminDoc.exists) {
-    alert("Admin profile not found!");
-    location.href = "index.html";
-    return;
-  }
-
-  const data = adminDoc.data();
-
-  // CHECK ADMIN BY MOBILE NUMBER
-  if (data.mobile !== ADMIN_MOBILE) {
-    alert("Not Authorized");
-    location.href = "index.html";
-    return;
-  }
-
-  // Authorized → load data
-  loadUsers();
-  loadWithdrawals();
-});
-
-
-// ---------------- SET RESULT ----------------
-function setResult(color){
-  db.collection("admin").doc("result").set({color});
-  alert("Result updated: " + color);
-}
-
-
-// ---------------- LOAD USERS ----------------
-function loadUsers(){
-  db.collection("users").onSnapshot(snap => {
-    let html = `<tr><th>Mobile</th><th>Coins</th><th>UPI</th><th>Add Coins</th></tr>`;
-    
-    snap.forEach(doc => {
-      const d = doc.data();
-      html += `
-        <tr>
-          <td>${d.mobile || "-"}</td>
-          <td>${d.coins || 0}</td>
-          <td>${d.upi || "-"}</td>
-          <td><button onclick="addCoins('${doc.id}')">+100</button></td>
-        </tr>
-      `;
-    });
-
-    document.getElementById("usersTable").innerHTML = html;
-  });
-}
-
-
-// ---------------- ADD COINS ----------------
-function addCoins(uid){
-  db.collection("users").doc(uid).update({
-    coins: firebase.firestore.FieldValue.increment(100)
-  });
-  alert("Coins added!");
-}
-
-
-// ---------------- LOAD WITHDRAWALS ----------------
-function loadWithdrawals(){
-  db.collection("withdrawals").onSnapshot(snap => {
-    let html = `<tr><th>Mobile</th><th>Coins</th><th>UPI</th><th>Status</th><th>Action</th></tr>`;
-    
-    snap.forEach(doc => {
-      const d = doc.data();
-      html += `
-        <tr>
-          <td>${d.mobile}</td>
-          <td>${d.coins}</td>
-          <td>${d.upi}</td>
-          <td>${d.status}</td>
-          <td>
-            ${d.status === "Pending" ? 
-              `<button onclick="approve('${doc.id}')">Approve</button>` 
-            : "✔️ Done"}
-          </td>
-        </tr>
-      `;
-    });
-
-    document.getElementById("withdrawTable").innerHTML = html;
-  });
-}
-
-
-// ---------------- APPROVE WITHDRAW ----------------
-function approve(id){
-  db.collection("withdrawals").doc(id).update({status: "Approved"});
-  alert("Approved!");
-}
-
-
-// ---------------- LOGOUT ----------------
-function logout(){
-  auth.signOut();
-  location.href = "index.html";
-}
-
+        auth.signInWithEmailAndPassword(email, pass)
+            .then(() => {
+                window.location.href = "admin-panel.html"; // redirect to admin panel
+            })
+            .catch((error) => {
+                document.getElementById("msg").innerText = error.message;
+            });
+    }
 </script>
 
 </body>
