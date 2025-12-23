@@ -3,141 +3,92 @@
 <head>
   <title>Wallet - AC Colour Prediction</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
   <style>
-    body{margin:0;font-family:Arial;background:#0d0d0d;color:#fff;text-align:center;}
-    .header{background:#000;padding:15px;font-size:22px;font-weight:bold;}
-    .card{
-      background:#1a1a1a;
-      width:90%;
-      margin:15px auto;
-      padding:20px;
-      border-radius:15px;
-      box-shadow:0 0 10px #000;
-    }
-    .balance{font-size:28px;font-weight:bold;color:#00ff90;margin-top:10px;}
-    button{
-      width:85%;
-      padding:14px;
-      margin:10px;
-      font-size:18px;
-      border:none;
-      border-radius:8px;
-      cursor:pointer;
-    }
-    .add{background:#00e676;color:#000;font-weight:bold;}
-    .withdraw{background:#ff9800;color:#000;font-weight:bold;}
-    input{
-      width:85%;
-      padding:12px;
-      margin:8px;
-      border:none;
-      border-radius:6px;
-      font-size:16px;
-    }
-    .box{
-      background:#111;
-      width:90%;
-      padding:15px;
-      margin:10px auto;
-      border-radius:10px;
-    }
-    .back{
-      background:#fff;color:#000;font-weight:bold;margin-top:15px;
-      width:50%;
-    }
+    body{font-family:Arial;background:#111;color:#fff;text-align:center;padding:15px;}
+    input,button{padding:10px;margin:5px;border-radius:6px;border:none;font-size:16px;}
+    table{width:100%;border-collapse:collapse;margin-top:15px;}
+    th,td{border:1px solid #555;padding:8px;text-align:center;}
+    th{background:#222;}
+    .approve{background:#00e676;color:#000;}
   </style>
 </head>
-
 <body>
 
-<div class="header">💰 Wallet</div>
+<h2>Wallet</h2>
+<p>Coins: <span id="coins">0</span></p>
 
-<div class="card">
-  <div>Your Balance</div>
-  <div class="balance"><span id="coins">0</span> Coins</div>
-</div>
+<h3>Request Withdrawal</h3>
+<input type="number" id="withdrawAmount" placeholder="Coins to withdraw" min="10">
+<button onclick="requestWithdrawal()">Request</button>
 
-<button class="add" onclick="addCoins()">ADD COINS</button>
+<h3>Pending Withdrawals</h3>
+<table id="withdrawTable">
+<tr><th>Time</th><th>Coins</th><th>Status</th></tr>
+</table>
 
-<div class="box">
-  <h3>Withdraw Coins</h3>
-  <input id="amount" type="number" placeholder="Enter amount">
-  <input id="upi" type="text" placeholder="UPI ID">
-  <button class="withdraw" onclick="withdraw()">Withdraw</button>
-</div>
-
-<button class="back" onclick="location.href='game.html'">⬅ Back</button>
+<button onclick="back()">Back to Game</button>
 
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
   authDomain: "ac-colour-prediction.firebaseapp.com",
   projectId: "ac-colour-prediction",
-  storageBucket: "ac-colour-prediction.appspot.com",
-  messagingSenderId: "471938348888",
-  appId: "1:471938348888:web:ac3fc3eb1939eb7cbe172d"
 };
 firebase.initializeApp(firebaseConfig);
 
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-let user;
+let coins = 0;
 
-/* AUTO LOAD USER */
-auth.onAuthStateChanged(async(u)=>{
+auth.onAuthStateChanged(async (u)=>{
   if(!u) location.href="index.html";
-  user = u;
-
-  const snap = await db.collection("users").doc(u.uid).get();
-  document.getElementById("coins").innerText = snap.data().coins;
+  const userRef = db.collection("users").doc(u.uid);
+  const data = (await userRef.get()).data();
+  coins = data.coins || 0;
+  document.getElementById("coins").innerText = coins;
+  loadWithdrawals(u.uid);
 });
 
-/* ADD COINS (manual admin approval) */
-function addCoins(){
-  alert("Please contact admin to add coins.");
-}
+async function requestWithdrawal(){
+  const amt = parseInt(document.getElementById("withdrawAmount").value);
+  if(isNaN(amt) || amt < 10){ alert("Enter valid amount"); return; }
+  if(amt > coins){ alert("Not enough coins"); return; }
 
-/* WITHDRAW */
-async function withdraw(){
-  const amt = parseInt(amount.value);
-  const upiId = upi.value;
-
-  if(!amt || amt < 50){
-    alert("Minimum withdraw is 50 coins!");
-    return;
-  }
-
-  const snap = await db.collection("users").doc(user.uid).get();
-  const coins = snap.data().coins;
-
-  if(amt > coins){
-    alert("Not enough balance!");
-    return;
-  }
-
-  // Save request
-  await db.collection("withdrawal").add({
-    uid: user.uid,
-    amount: amt,
-    upi: upiId,
+  const u = auth.currentUser;
+  await db.collection("withdrawals").add({
+    uid: u.uid,
+    email: u.email,
+    coins: amt,
     status: "Pending",
-    time: new Date()
+    requestedAt: new Date()
   });
-
-  // Deduct coins
-  await db.collection("users").doc(user.uid).update({
-    coins: coins - amt
-  });
-
-  alert("Withdrawal request sent!");
-  location.reload();
+  alert("Withdrawal requested");
+  loadWithdrawals(u.uid);
 }
+
+async function loadWithdrawals(uid){
+  const snap = await db.collection("withdrawals")
+    .where("uid","==",uid)
+    .orderBy("requestedAt","desc").get();
+    
+  const table = document.getElementById("withdrawTable");
+  table.innerHTML = "<tr><th>Time</th><th>Coins</th><th>Status</th></tr>";
+  snap.forEach(doc=>{
+    const d = doc.data();
+    const row = table.insertRow(-1);
+    const t = new Date(d.requestedAt.seconds*1000).toLocaleString();
+    row.insertCell(0).innerText = t;
+    row.insertCell(1).innerText = d.coins;
+    row.insertCell(2).innerText = d.status;
+  });
+}
+
+function back(){ location.href="game.html"; }
 </script>
 
 </body>
