@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Wallet - AC Colour Prediction</title>
+<title>Wallet</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -10,39 +10,42 @@
 
 <style>
 body{
-    font-family: Arial;
-    background:#0f0f0f;
+    background:#0d0d0d;
     color:#fff;
-    padding:10px;
+    font-family:Arial;
+    padding:15px;
 }
 .card{
     background:#1a1a1a;
     padding:15px;
+    margin-top:15px;
     border-radius:10px;
-    margin:10px 0;
 }
 button{
-    background:#00d46e;
-    padding:10px;
-    border:none;
-    border-radius:6px;
-    color:#000;
-    font-weight:bold;
-    margin-top:10px;
     width:100%;
+    padding:12px;
+    background:#00e676;
+    color:#000;
+    border:none;
+    font-weight:bold;
+    border-radius:8px;
+    margin-top:10px;
 }
 input{
     width:100%;
     padding:10px;
-    margin-top:5px;
+    margin-top:10px;
+    background:#222;
+    color:#fff;
     border:none;
     border-radius:6px;
 }
-.history-item{
-    background:#222;
+.historyBox{
+    background:#111;
     padding:10px;
-    margin:5px 0;
-    border-radius:6px;
+    border-radius:8px;
+    margin-top:8px;
+    border:1px solid #333;
 }
 </style>
 
@@ -50,36 +53,40 @@ input{
 
 <body>
 
-<h2>💰 My Wallet</h2>
+<h2>💼 My Wallet</h2>
 
 <div class="card">
     <h3>Available Coins: <span id="coins">0</span></h3>
 </div>
 
-<!-- ADD COINS -->
+<!-- Add Coins -->
 <div class="card">
-    <h3>Add Coins</h3>
-    <input id="addCoinsAmount" type="number" placeholder="Enter Coins">
-    <button onclick="openRecharge()">Proceed to Recharge</button>
+    <h3>✨ Add Coins</h3>
+    <input type="number" id="addAmount" placeholder="Enter amount">
+    <button onclick="proceedRecharge()">Proceed to Recharge</button>
 </div>
 
-<!-- WITHDRAW COINS -->
+<!-- Withdraw Coins -->
 <div class="card">
-    <h3>Withdraw Coins</h3>
-    <input id="withdrawAmount" type="number" placeholder="Enter Withdraw Coins">
-    <button onclick="withdrawCoins()">Request Withdrawal</button>
+    <h3>💸 Withdraw Coins</h3>
+    <input type="number" id="withdrawAmount" placeholder="Enter amount">
+    <button onclick="withdrawCoins()">Withdraw</button>
 </div>
 
-<!-- TRANSACTION HISTORY -->
+<!-- Recharge History -->
 <div class="card">
-    <h3>Withdrawal History</h3>
-    <div id="history"></div>
+    <h3>🧾 Recharge History</h3>
+    <div id="rechHistory"></div>
 </div>
 
-<button onclick="logout()" style="background:red;color:white;">Logout</button>
+<!-- Withdrawal History -->
+<div class="card">
+    <h3>📤 Withdrawal History</h3>
+    <div id="wdHistory"></div>
+</div>
 
 <script>
-/* ---------------- Firebase Config ---------------- */
+/* ------ Firebase Config ------ */
 const firebaseConfig = {
   apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
   authDomain: "ac-colour-prediction.firebaseapp.com",
@@ -92,101 +99,109 @@ const db = firebase.firestore();
 
 let UID = "";
 
-/* ---------------- Auth Check ---------------- */
+/* ------ AUTH ------ */
 auth.onAuthStateChanged(user=>{
-    if(!user){
-        location.href = "index.html";
-    } else {
-        UID = user.uid;
-        loadUserCoins();
-        loadHistory();
-    }
+    if(!user) location.href="index.html";
+    UID = user.uid;
+    loadCoins();
+    loadRechargeHistory();
+    loadWithdrawalHistory();
 });
 
-/* ---------------- Load Coins ---------------- */
-function loadUserCoins(){
+/* ------ Load Coins ------ */
+function loadCoins(){
     db.collection("users").doc(UID).onSnapshot(doc=>{
-        if(doc.exists){
-            document.getElementById("coins").innerText = doc.data().coins || 0;
-        }
+        document.getElementById("coins").innerText = doc.data().coins || 0;
     });
 }
 
-/* ---------------- Recharge Redirect ---------------- */
-function openRecharge(){
-    let amount = document.getElementById("addCoinsAmount").value;
+/* ------ Proceed Recharge ------ */
+function proceedRecharge(){
+    let amount = document.getElementById("addAmount").value;
 
-    if(amount <= 0 || amount === ""){
-        alert("Enter valid amount");
+    if(amount < 50){
+        alert("Minimum recharge is 50.");
         return;
     }
 
-    // Redirect to recharge page with amount
-    window.location.href = "recharge.html?amount=" + amount;
+    window.location.href = "recharge.html?amount=" + amount;  
 }
 
-/* ---------------- Withdraw Coins ---------------- */
+/* ------ Withdraw Coins ------ */
 async function withdrawCoins(){
-    let amount = parseInt(document.getElementById("withdrawAmount").value);
+    let amount = Number(document.getElementById("withdrawAmount").value);
 
-    if(amount <= 0){
-        alert("Enter valid withdrawal amount");
+    if(amount < 100){
+        alert("Minimum withdrawal 100 coins");
         return;
     }
 
-    const userDoc = await db.collection("users").doc(UID).get();
+    let userDoc = await db.collection("users").doc(UID).get();
+    let balance = userDoc.data().coins;
 
-    if(!userDoc.exists) return;
-
-    let coins = userDoc.data().coins || 0;
-
-    if(amount > coins){
-        alert("Not enough coins");
+    if(balance < amount){
+        alert("Insufficient balance");
         return;
     }
 
     await db.collection("withdrawals").add({
         uid: UID,
-        email: userDoc.data().email,
         coins: amount,
-        upi: userDoc.data().upi || "-",
+        email: userDoc.data().email,
+        upi: userDoc.data().upi || "",
         status: "Pending",
         requestedAt: new Date()
     });
 
-    alert("Withdrawal Request Submitted!");
-    document.getElementById("withdrawAmount").value = "";
+    alert("Withdrawal request submitted!");
 }
 
-/* ---------------- History ---------------- */
-function loadHistory(){
+/* ------ Recharge History ------ */
+function loadRechargeHistory(){
+    db.collection("rechargeRequests")
+      .where("uid","==",UID)
+      .orderBy("time","desc")
+      .onSnapshot(snap=>{
+        
+        let html = "";
+        snap.forEach(doc=>{
+            let d = doc.data();
+            html += `
+                <div class="historyBox">
+                    <b>Amount:</b> ${d.amount} Coins<br>
+                    <b>Status:</b> ${d.status}<br>
+                    <b>Date:</b> ${d.time.toDate().toLocaleString()}
+                </div>
+            `;
+        });
+
+        document.getElementById("rechHistory").innerHTML = html;
+    });
+}
+
+/* ------ Withdrawal History ------ */
+function loadWithdrawalHistory(){
     db.collection("withdrawals")
       .where("uid","==",UID)
       .orderBy("requestedAt","desc")
       .onSnapshot(snap=>{
-          let html = "";
 
-          snap.forEach(doc=>{
-              const d = doc.data();
-              html += `
-              <div class="history-item">
-                <b>${d.coins} Coins</b><br>
-                Status: ${d.status}<br>
-                <small>${d.requestedAt.toDate().toLocaleString()}</small>
-              </div>`;
-          });
+        let html = "";
+        snap.forEach(doc=>{
+            let d = doc.data();
+            html += `
+                <div class="historyBox">
+                    <b>Coins:</b> ${d.coins}<br>
+                    <b>Status:</b> ${d.status}<br>
+                    <b>Date:</b> ${d.requestedAt.toDate().toLocaleString()}
+                </div>
+            `;
+        });
 
-          document.getElementById("history").innerHTML = html;
-      });
-}
-
-/* ---------------- Logout ---------------- */
-function logout(){
-    auth.signOut().then(()=>{
-        location.href = "index.html";
+        document.getElementById("wdHistory").innerHTML = html;
     });
 }
 </script>
 
 </body>
-</html>
+    </html>
