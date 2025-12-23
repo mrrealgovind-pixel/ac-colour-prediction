@@ -1,74 +1,36 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>AC Colour Prediction - Login</title>
+  <title>User Registration</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
   <style>
-    body{
-      font-family: Arial;
-      background:#111;
-      color:#fff;
-      text-align:center;
-      padding-top:40px;
-    }
-    input,button{
-      padding:12px;
-      margin:8px;
-      width:80%;
-      font-size:16px;
-    }
-    button{
-      background:#ff9800;
-      border:none;
-      color:#000;
-      font-weight:bold;
-      cursor:pointer;
-    }
-    .box-container{
-      width:95%;
-      margin:auto;
-      max-width:380px;
-      background:#222;
-      padding:15px;
-      border-radius:10px;
-    }
+    body{ font-family:Arial; background:#111; color:#fff; text-align:center; padding-top:40px; }
+    input,button{ padding:12px; margin:8px; width:80%; font-size:16px; }
+    button{ background:#4caf50; border:none; font-weight:bold; cursor:pointer; }
+    .box{ background:#222; width:90%; max-width:350px; padding:20px; margin:auto; border-radius:10px; }
   </style>
 </head>
 
 <body>
 
-<h2>AC Colour Prediction</h2>
+<h2>User Registration</h2>
 
-<div class="box-container">
-  <h3>User Login (Mobile)</h3>
-
+<div class="box">
   <input id="mobile" type="text" placeholder="Mobile Number">
-  <input id="passwordMobile" type="password" placeholder="Password">
+  <input id="password" type="password" placeholder="Password">
 
-  <button onclick="userLogin()">User Login</button>
+  <button onclick="registerUser()">Register</button>
+  <p id="msg"></p>
+
+  <a style="color:#0af" href="index.html">Already have account? Login</a>
 </div>
-
-<br>
-
-<div class="box-container">
-  <h3>Admin Login (Email)</h3>
-
-  <input id="email" type="email" placeholder="Admin Email">
-  <input id="passwordEmail" type="password" placeholder="Password">
-
-  <button onclick="adminLogin()">Admin Login</button>
-</div>
-
-<p id="msg"></p>
 
 <script>
-  // 🔥 FIREBASE CONFIG
   const firebaseConfig = {
     apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
     authDomain: "ac-colour-prediction.firebaseapp.com",
@@ -81,64 +43,37 @@
   firebase.initializeApp(firebaseConfig);
 
   const auth = firebase.auth();
-  const db   = firebase.firestore();
+  const db = firebase.firestore();
 
-  // ADMIN EMAIL FIXED
-  const ADMIN_EMAIL = "admin@gmail.com";
-
-  // AUTO-REDIRECT IF LOGGED IN
-  auth.onAuthStateChanged(async user => {
-    if(!user) return;
-
-    const doc = await db.collection("users").doc(user.uid).get();
-    const data = doc.data();
-
-    if(user.email === ADMIN_EMAIL){
-      location.assign("admin.html");
-    } 
-    else if(data && data.mobile){
-      location.assign("game.html");
-    }
-  });
-
-  // ⭐ USER LOGIN (MOBILE + PASSWORD)
-  async function userLogin(){
-    const mobile = document.getElementById("mobile").value;
-    const pass   = document.getElementById("passwordMobile").value;
+  async function registerUser(){
+    const mobile = mobile.value;
+    const pass   = password.value;
 
     if(mobile.length !== 10){
-      msg.innerText = "Enter valid 10-digit mobile number";
+      msg.innerText = "Enter valid mobile number";
       return;
     }
 
-    const emailFormat = mobile + "@mobile.com"; // Fake email for Firebase Auth
+    let fakeEmail = mobile + "@mobile.com";
 
-    try {
-      const userCred = await auth.signInWithEmailAndPassword(emailFormat, pass);
-      location.assign("game.html");
-    }
-    catch(err){
-      msg.innerText = err.message;
-    }
-  }
-
-  // ⭐ ADMIN LOGIN (EMAIL + PASSWORD)
-  function adminLogin(){
-    const email = document.getElementById("email").value;
-    const pass  = document.getElementById("passwordEmail").value;
-
-    if(email !== ADMIN_EMAIL){
-      msg.innerText = "Only admin email allowed!";
-      return;
-    }
-
-    auth.signInWithEmailAndPassword(email, pass)
-    .then(()=>{
-      location.assign("admin.html");
+    auth.createUserWithEmailAndPassword(fakeEmail, pass)
+    .then(cred=>{
+      return db.collection("users").doc(cred.user.uid).set({
+        uid: cred.user.uid,
+        mobile: mobile,
+        coins: 1000,
+        upi: "",
+        bank: "",
+        account: "",
+        ifsc: "",
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
     })
-    .catch(e=>{
-      msg.innerText = e.message;
-    });
+    .then(()=>{
+      msg.innerText = "Registration successful!";
+      location.href = "game.html";
+    })
+    .catch(e=> msg.innerText = e.message);
   }
 </script>
 
