@@ -1,53 +1,60 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>AC Colour Prediction - Login</title>
+  <title>AC Colour Prediction - Mobile Login</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- Firebase SDK -->
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
   <style>
-    body{
+    body {
       font-family: Arial;
-      background:#111;
-      color:#fff;
-      text-align:center;
-      padding-top:40px;
+      background: #111;
+      color: #fff;
+      text-align: center;
+      padding-top: 40px;
     }
-    input,button{
-      padding:12px;
-      margin:8px;
-      width:80%;
-      font-size:16px;
+    input, button {
+      padding: 12px;
+      margin: 8px;
+      width: 80%;
+      font-size: 16px;
+      border-radius: 6px;
+      border: none;
     }
-    button{
-      background:#ff9800;
-      border:none;
-      color:#000;
-      font-weight:bold;
-      cursor:pointer;
+    button {
+      background: #ff9800;
+      color: #000;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    #otpSection {
+      display: none;
+    }
+    #recaptcha-container {
+      margin: 10px auto;
     }
   </style>
 </head>
-
 <body>
 
 <h2>AC Colour Prediction</h2>
 
-<input id="email" type="email" placeholder="Email">
-<input id="password" type="password" placeholder="Password">
+<input id="mobile" type="text" placeholder="Enter Mobile Number (+91xxxxxxxxxx)">
+<button id="sendOtpBtn" onclick="sendOTP()">Send OTP</button>
 
-<button onclick="register()">Register</button>
-<button onclick="login()">Login</button>
+<div id="otpSection">
+  <input id="otp" type="text" placeholder="Enter OTP">
+  <button onclick="verifyOTP()">Verify OTP</button>
+</div>
 
+<div id="recaptcha-container"></div>
 <p id="msg"></p>
 
 <script>
-
-  // 🔥 FIREBASE CONFIG
   const firebaseConfig = {
     apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
     authDomain: "ac-colour-prediction.firebaseapp.com",
@@ -58,76 +65,88 @@
   };
 
   firebase.initializeApp(firebaseConfig);
-
   const auth = firebase.auth();
-  const db   = firebase.firestore();
+  const db = firebase.firestore();
 
-  // 🔐 ADMIN EMAIL
-  const ADMIN_EMAIL = "admin@gmail.com";
+  const ADMIN_MOBILE = "+91XXXXXXXXXX"; // Replace with admin mobile number
 
-  // 🔁 AUTO REDIRECT IF LOGGED IN
-  auth.onAuthStateChanged(user => {
-    if(user){
-      if(user.email === ADMIN_EMAIL){
+  // Auto redirect if already logged in
+  auth.onAuthStateChanged(async user => {
+    if (user) {
+      const doc = await db.collection("users").doc(user.uid).get();
+      if (user.phoneNumber === ADMIN_MOBILE) {
         window.location.href = "admin.html";
-      }else{
+      } else {
         window.location.href = "game.html";
       }
     }
   });
 
-  // 🟢 REGISTER NEW USER
-  function register(){
-    let em = email.value.trim();
-    let pw = password.value.trim();
+  // Setup invisible Recaptcha
+  window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+    'size': 'invisible',
+    'callback': (response) => {
+      sendOTP();
+    }
+  });
 
-    if(em === "" || pw === ""){
-      msg.innerText = "Please fill all fields";
+  let confirmationResultGlobal;
+
+  function sendOTP() {
+    const number = document.getElementById("mobile").value;
+    if (!number.startsWith("+")) {
+      document.getElementById("msg").innerText = "Please enter mobile with country code, e.g., +91xxxxxxxxxx";
       return;
     }
 
-    auth.createUserWithEmailAndPassword(em, pw)
-    .then((cred)=>{
-      // 🔥 FIX: Coins, UPI, bank details save
-      return db.collection("users").doc(cred.user.uid).set({
-        uid: cred.user.uid,
-        email: cred.user.email,
-        coins: 1000,
-        upi: "",
-        bankName: "",
-        accountNumber: "",
-        ifsc: "",
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    const appVerifier = window.recaptchaVerifier;
+
+    auth.signInWithPhoneNumber(number, appVerifier)
+      .then((confirmationResult) => {
+        confirmationResultGlobal = confirmationResult;
+        document.getElementById("otpSection").style.display = "block";
+        document.getElementById("msg").innerText = "OTP sent to " + number;
+      })
+      .catch((error) => {
+        document.getElementById("msg").innerText = error.message;
       });
-    })
-    .then(()=>{
-      // Redirect
-      if(em === ADMIN_EMAIL){
-        window.location.href = "admin.html";
-      }else{
-        window.location.href = "game.html";
-      }
-    })
-    .catch(e=>{
-      msg.innerText = e.message;
-    });
   }
 
-  // 🔵 LOGIN USER
-  function login(){
-    auth.signInWithEmailAndPassword(email.value, password.value)
-    .then((cred)=>{
-      if(cred.user.email === ADMIN_EMAIL){
-        window.location.href = "admin.html";
-      }else{
-        window.location.href = "game.html";
-      }
-    })
-    .catch(e=>{
-      msg.innerText = e.message;
-    });
-  }
+  function verifyOTP() {
+    const code = document.getElementById("otp").value;
+    confirmationResultGlobal.confirm(code)
+      .then(async (result) => {
+        const user = result.user;
+        document.getElementById("msg").innerText = "Login successful!";
 
+        // Save user data in Firestore if new user
+        const userRef = db.collection("users").doc(user.uid);
+        const docSnap = await userRef.get();
+        if (!docSnap.exists) {
+          await userRef.set({
+            uid: user.uid,
+            mobile: user.phoneNumber,
+            coins: 1000,
+            bank: "",
+            account: "",
+            ifsc: "",
+            upi: "",
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        }
+
+        // Redirect
+        if (user.phoneNumber === ADMIN_MOBILE) {
+          window.location.href = "admin.html";
+        } else {
+          window.location.href = "game.html";
+        }
+
+      })
+      .catch((error) => {
+        document.getElementById("msg").innerText = error.message;
+      });
+  }
 </script>
 
 </body>
