@@ -1,80 +1,73 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>Transaction History</title>
+  <title>Transaction History</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
-<script type="module">
-
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { 
-    getAuth, 
-    onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-
-import {
-    getFirestore,
-    collection,
-    query,
-    where,
-    orderBy,
-    getDocs
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-const firebaseConfig = {
-    apiKey: "YOUR_KEY",
-    authDomain: "YOUR_DOMAIN",
-    projectId: "YOUR_ID",
-    storageBucket: "YOUR_BUCKET",
-    messagingSenderId: "YOUR_ID",
-    appId: "YOUR_APP_ID"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-        window.location.href = "index.html";
-        return;
-    }
-
-    loadHistory(user.uid);
-});
-
-async function loadHistory(uid) {
-
-    const q = query(
-        collection(db, "transactions"),
-        where("uid", "==", uid),
-        orderBy("created", "desc")
-    );
-
-    const snap = await getDocs(q);
-
-    let html = "";
-
-    snap.forEach(doc => {
-        const d = doc.data();
-        html += `
-            <div style="padding:10px;border-bottom:1px solid #ccc;">
-                <b>Color:</b> ${d.color}<br>
-                <b>Result:</b> ${d.result}<br>
-            </div>
-        `;
-    });
-
-    document.getElementById("list").innerHTML = html || "No history found.";
-}
-
-</script>
-
+  <style>
+    body{font-family:Arial;background:#111;color:#fff;text-align:center;padding:15px;}
+    table{width:100%;border-collapse:collapse;margin-top:15px;}
+    th,td{border:1px solid #555;padding:8px;text-align:center;}
+    th{background:#222;}
+    .win{color:#00ff00;font-weight:bold;}
+    .lose{color:#ff5252;font-weight:bold;}
+    button{padding:10px;margin-top:10px;background:#ff9800;border:none;color:#000;font-weight:bold;border-radius:6px;cursor:pointer;}
+  </style>
 </head>
 <body>
 
 <h2>Transaction History</h2>
-<div id="list"></div>
+<table id="transTable">
+<tr>
+  <th>Time</th>
+  <th>Bet</th>
+  <th>Picked</th>
+  <th>Result</th>
+  <th>Win/Lose</th>
+</tr>
+</table>
+
+<button onclick="back()">Back to Game</button>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
+  authDomain: "ac-colour-prediction.firebaseapp.com",
+  projectId: "ac-colour-prediction",
+  storageBucket: "ac-colour-prediction.appspot.com",
+  messagingSenderId: "471938348888",
+  appId: "1:471938348888:web:ac3fc3eb7cbe172d"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+auth.onAuthStateChanged(async (u)=>{
+  if(!u) location.href="index.html";
+  loadTransactions(u.uid);
+});
+
+async function loadTransactions(uid){
+  const snap = await db.collection("transactions").where("uid","==",uid).orderBy("time","desc").limit(50).get();
+  const table = document.getElementById("transTable");
+  snap.forEach(doc=>{
+    const d = doc.data();
+    const row = table.insertRow(-1);
+    const t = new Date(d.time.seconds*1000).toLocaleString();
+    row.insertCell(0).innerText = t;
+    row.insertCell(1).innerText = d.bet;
+    row.insertCell(2).innerText = d.color;
+    row.insertCell(3).innerText = d.result;
+    row.insertCell(4).innerText = d.win ? "WIN" : "LOSE";
+    row.cells[4].className = d.win ? "win" : "lose";
+  });
+}
+
+function back(){ location.href="game.html"; }
+</script>
 
 </body>
 </html>
