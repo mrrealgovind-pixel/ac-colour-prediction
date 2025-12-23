@@ -54,6 +54,7 @@ function requestWithdrawal(){
   if(!amt || amt > coins) { msg.innerText="❌ Invalid amount"; return; }
   const u = auth.currentUser;
   if(!u) return;
+
   // Save withdrawal request
   db.collection("withdrawals").add({
     uid: u.uid,
@@ -64,6 +65,20 @@ function requestWithdrawal(){
     requestedAt: new Date()
   }).then(()=>{
     msg.innerText="✅ Withdrawal requested";
+
+    // Save to transactions collection
+    db.collection("transactions").add({
+      uid: u.uid,
+      type: "Withdrawal",
+      coins: amt,
+      upi: userData.upi || "",
+      status: "Pending",
+      time: new Date()
+    });
+
+    coins -= amt; // deduct temporarily
+    document.getElementById("coins").innerText = coins;
+    db.collection("users").doc(u.uid).update({coins});
   });
 }
 
@@ -71,4 +86,4 @@ function back(){ location.href="game.html"; }
 </script>
 
 </body>
-</html>
+                                       </html>
