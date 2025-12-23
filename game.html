@@ -1,46 +1,48 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>AC Colour Prediction</title>
+  <title>AC Colour Prediction - Pro JILI UI</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  
+
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
   <style>
-    body{margin:0;background:#0f0f0f;color:#fff;font-family:Arial;text-align:center}
-    .top-buttons{margin-top:10px}
-    .top-buttons button{padding:10px 20px;background:#222;color:#fff;border:none;border-radius:6px;margin:5px;font-size:14px}
-    .header{background:#000;padding:12px;font-size:20px}
-    .coins{margin:10px;color:#00e676;font-size:18px}
-    .progress{width:90%;height:10px;background:#333;margin:auto;border-radius:5px}
-    .bar{height:100%;background:#ff9800;width:100%;transition:0.3s}
-    .history{margin:10px;font-size:18px}
-    select,button{padding:12px;margin:6px;width:80%;font-size:16px;border:none;border-radius:6px}
-    .red{background:#e53935;color:#fff}
-    .green{background:#43a047;color:#fff}
-    .violet{background:#8e24aa;color:#fff}
-    .logout{background:#fff;color:#000;width:40%}
+    body{margin:0;font-family:Arial;background:#0f0f0f;color:#fff;text-align:center;}
+    .top-buttons{margin:10px;}
+    .top-buttons button{padding:10px 15px;margin:5px;background:#222;color:#fff;border:none;border-radius:8px;cursor:pointer;}
+    .header{font-size:22px;padding:12px;background:#000;margin-bottom:10px;}
+    .coins{font-size:18px;color:#00ff90;margin:8px;}
+    .history{margin:10px;display:flex;justify-content:center;flex-wrap:wrap;gap:6px;}
+    .bubble{padding:8px 12px;border-radius:50%;color:#fff;font-weight:bold;width:40px;height:40px;display:flex;align-items:center;justify-content:center;}
+    .red{background:#e53935;}
+    .green{background:#43a047;}
+    .violet{background:#8e24aa;}
+    select,button{padding:12px;margin:6px;width:80%;font-size:16px;border:none;border-radius:6px;cursor:pointer;}
+    .bet-btn{font-weight:bold;font-size:18px;transition:0.3s;}
+    .bet-btn:hover{transform:scale(1.1);}
+    #bar-container{width:90%;height:12px;background:#333;margin:10px auto;border-radius:6px;overflow:hidden;}
+    #bar{height:100%;width:100%;background:#ff9800;transition:0.3s;}
+    .msg{margin:12px;font-size:18px;}
+    .logout{background:#fff;color:#000;width:40%;margin-top:12px;}
   </style>
 </head>
 
 <body>
 
-<!-- TOP NAVIGATION -->
 <div class="top-buttons">
   <button onclick="location.href='profile.html'">Profile / Bank Details</button>
   <button onclick="location.href='wallet.html'">💰 Wallet</button>
 </div>
 
 <div class="header">AC Colour Prediction</div>
-
 <div class="coins">Coins: <span id="coins">0</span></div>
 
-<div class="progress"><div class="bar" id="bar"></div></div>
+<div id="bar-container"><div id="bar"></div></div>
 
-<div class="history" id="history">Last: — — — — —</div>
+<div class="history" id="history"></div>
 
 <select id="betAmount">
   <option value="50">Bet 50</option>
@@ -48,14 +50,15 @@
   <option value="500">Bet 500</option>
 </select>
 
-<button class="red" onclick="bet('Red')">RED</button>
-<button class="green" onclick="bet('Green')">GREEN</button>
-<button class="violet" onclick="bet('Violet')">VIOLET</button>
+<div>
+  <button class="bet-btn red" onclick="bet('Red')">RED</button>
+  <button class="bet-btn green" onclick="bet('Green')">GREEN</button>
+  <button class="bet-btn violet" onclick="bet('Violet')">VIOLET</button>
+</div>
 
-<p id="msg"></p>
+<div class="msg" id="msg"></div>
 <button class="logout" onclick="logout()">Logout</button>
 
-<!-- Sounds -->
 <audio id="winSound" src="win.mp3"></audio>
 <audio id="loseSound" src="lose.mp3"></audio>
 
@@ -73,69 +76,95 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-let coins = 0, pick = "", time = 30;
-const ADMIN_MOBILE = "9999999999";
+let coins = 0;
+let pick = "";
+let time = 30;
 
-// ✅ AUTO LOGIN CHECK + USER DATA LOAD
+/* -------------------- AUTO LOGIN + CREATE USER -------------------- */
 auth.onAuthStateChanged(async (u) => {
-  if(!u) location.href="index.html";
+  if (!u) { location.href="index.html"; return; }
 
   const userRef = db.collection("users").doc(u.uid);
   const docSnap = await userRef.get();
-  if(!docSnap.exists){
+
+  if (!docSnap.exists) {
     await userRef.set({
-      mobile: ADMIN_MOBILE, // fallback
+      email: u.email,
       coins: 1000,
       createdAt: new Date(),
-      bank:"",
-      account:"",
-      ifsc:"",
-      upi:""
+      upi: "",
+      bank: "",
+      account: "",
+      ifsc: ""
     });
   }
 
   const data = (await userRef.get()).data();
   coins = data.coins || 0;
   document.getElementById("coins").innerText = coins;
-
-  // Redirect admin if accidentally login here
-  if(data.mobile === ADMIN_MOBILE) location.href="admin.html";
 });
 
-// ------------------ GAME LOGIC ------------------
-function bet(c){ pick=c; msg.innerText="Selected: "+c; }
+/* -------------------- BET -------------------- */
+function bet(color) {
+  pick = color;
+  msg.innerText = "Selected: " + color;
+}
 
-setInterval(()=>{
+/* -------------------- TIMER -------------------- */
+setInterval(() => {
   time--;
-  bar.style.width = (time/30*100)+"%";
-  if(time<=0){ result(); time=30; }
-},1000);
+  document.getElementById("bar").style.width = (time/30*100) + "%";
+  if(time <= 0){ result(); time = 30; }
+}, 1000);
 
+/* -------------------- RESULT -------------------- */
 async function result(){
-  let adminDoc = await db.collection("admin").doc("result").get();
-  let winColor = adminDoc.exists ? adminDoc.data().color : ["Red","Green","Violet"][Math.floor(Math.random()*3)];
+  const adminDoc = await db.collection("admin").doc("result").get();
+  const winColor = adminDoc.exists ? adminDoc.data().color : ["Red","Green","Violet"][Math.floor(Math.random()*3)];
 
-  let betAmt = parseInt(betAmount.value);
-  if(pick===winColor){ coins+=betAmt*2; winSound.play(); msg.innerText="🎉 WIN — "+winColor; }
-  else{ coins-=betAmt; loseSound.play(); msg.innerText="❌ LOSE — "+winColor; }
+  const betAmt = parseInt(betAmount.value);
 
-  coins=Math.max(coins,0);
+  if(pick === winColor){
+    coins += betAmt*2;
+    winSound.play();
+    msg.innerText = "🎉 WIN — " + winColor;
+  }else{
+    coins -= betAmt;
+    loseSound.play();
+    msg.innerText = "❌ LOSE — " + winColor;
+  }
+
+  coins = Math.max(coins,0);
   document.getElementById("coins").innerText = coins;
 
   const u = auth.currentUser;
   if(u) db.collection("users").doc(u.uid).update({coins});
+
   db.collection("rounds").add({result:winColor,time:new Date()});
-  loadHistory(); pick="";
+  loadHistory();
+  pick = "";
 }
 
-function loadHistory(){
-  db.collection("rounds").orderBy("time","desc").limit(10).get()
-    .then(snap=>{let arr=[];snap.forEach(d=>arr.push(d.data().result));history.innerText="Last: "+arr.join(" ");});
+/* -------------------- LOAD HISTORY -------------------- */
+async function loadHistory(){
+  const snap = await db.collection("rounds").orderBy("time","desc").limit(10).get();
+  const historyEl = document.getElementById("history");
+  historyEl.innerHTML = "";
+  snap.forEach(doc=>{
+    const c = doc.data().result;
+    const div = document.createElement("div");
+    div.className = `bubble ${c.toLowerCase()}`;
+    div.innerText = c[0]; // First letter: R, G, V
+    historyEl.appendChild(div);
+  });
 }
 loadHistory();
 
-function logout(){ auth.signOut().then(()=>location.href="index.html"); }
+/* -------------------- LOGOUT -------------------- */
+function logout(){
+  auth.signOut().then(()=>location.href="index.html");
+}
 </script>
 
 </body>
-    </html>
+  </html>
