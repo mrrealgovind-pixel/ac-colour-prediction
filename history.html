@@ -9,16 +9,11 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
   <style>
-    body{font-family:Arial;background:#111;color:#fff;padding:20px;}
-    h2{text-align:center;}
-    .card{
-      background:#222;padding:15px;margin:10px 0;
-      border-radius:10px;
-    }
-    .win{color:#00ff7f;font-weight:bold;}
-    .lose{color:#ff5252;font-weight:bold;}
+    body{background:#111;color:#fff;font-family:Arial;text-align:center;padding:15px;}
+    .item{background:#222;margin:10px;padding:12px;border-radius:8px;}
   </style>
 </head>
+
 <body>
 
 <h2>Transaction History</h2>
@@ -33,36 +28,35 @@ const firebaseConfig = {
   messagingSenderId: "471938348888",
   appId: "1:471938348888:web:ac3fc3eb1939eb7cbe172d"
 };
-
 firebase.initializeApp(firebaseConfig);
+
 const auth = firebase.auth();
 const db = firebase.firestore();
 
 auth.onAuthStateChanged(async (u)=>{
   if(!u){ location.href="index.html"; return; }
 
-  const historyRef = db.collection("users").doc(u.uid).collection("history").orderBy("time","desc");
+  const snap = await db.collection("transactions")
+    .where("uid","==",u.uid)
+    .orderBy("time","desc")
+    .limit(50)
+    .get();
 
-  const snap = await historyRef.get();
-  let html = "";
+  const list = document.getElementById("list");
+  list.innerHTML = "";
 
   snap.forEach(doc=>{
     const d = doc.data();
-    html += `
-      <div class="card">
-        <div><b>Bet:</b> ${d.betColor}</div>
-        <div><b>Result:</b> ${d.winColor}</div>
-        <div><b>Amount:</b> ${d.betAmount}</div>
-        <div class="${d.win ? 'win':'lose'}">${d.win ? "WIN":"LOSE"}</div>
-        <div><b>Coins After:</b> ${d.finalCoins}</div>
-        <div><small>${d.time.toDate()}</small></div>
-      </div>
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = `
+      <b>${d.type}</b> - ${d.amount} coins<br>
+      <small>${d.time.toDate()}</small>
     `;
+    list.appendChild(div);
   });
-
-  document.getElementById("list").innerHTML = html || "<p>No history found</p>";
 });
 </script>
 
 </body>
-  </html>
+</html>
