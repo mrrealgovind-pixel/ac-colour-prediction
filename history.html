@@ -3,53 +3,47 @@
 <head>
   <title>Transaction History</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
   <style>
-    body{background:#0d0d0d;color:#fff;font-family:Arial;text-align:center;}
-    .header{background:#000;padding:15px;font-size:22px;font-weight:bold;}
-    table{width:95%;margin:10px auto;border-collapse:collapse;}
-    th,td{border:1px solid #333;padding:8px;font-size:14px;}
-    th{background:#111;}
-    .win{color:#00ff90;font-weight:bold;}
+    body{font-family:Arial;background:#111;color:#fff;text-align:center;padding:15px;}
+    table{width:100%;border-collapse:collapse;margin-top:15px;}
+    th,td{border:1px solid #555;padding:8px;text-align:center;}
+    th{background:#222;}
+    .win{color:#00ff00;font-weight:bold;}
     .lose{color:#ff5252;font-weight:bold;}
-    .pending{color:#ff9800;font-weight:bold;}
-    .back{
-      width:50%;padding:12px;background:#fff;color:#000;font-weight:bold;
-      border:none;border-radius:8px;margin-top:15px;
-    }
+    .approve{background:#00e676;color:#000;}
+    .reject{background:#ff5252;color:#fff;}
+    button{padding:10px;margin-top:10px;background:#ff9800;border:none;color:#000;font-weight:bold;border-radius:6px;cursor:pointer;}
   </style>
 </head>
-
 <body>
 
-<div class="header">📜 Transaction History</div>
+<h2>Transaction & Withdrawal History</h2>
 
-<h3>Bet History</h3>
-<table id="betTable">
-  <tr>
-    <th>Time</th>
-    <th>Bet</th>
-    <th>Pick</th>
-    <th>Result</th>
-    <th>Status</th>
-  </tr>
+<h3>🎮 Game Transactions</h3>
+<table id="transTable">
+<tr>
+  <th>Time</th>
+  <th>Bet</th>
+  <th>Picked</th>
+  <th>Result</th>
+  <th>Win/Lose</th>
+</tr>
 </table>
 
-<h3>Withdraw History</h3>
-<table id="withTable">
-  <tr>
-    <th>Time</th>
-    <th>Amount</th>
-    <th>UPI</th>
-    <th>Status</th>
-  </tr>
+<h3>💸 Withdrawals</h3>
+<table id="withdrawTable">
+<tr>
+  <th>Time</th>
+  <th>Coins</th>
+  <th>Status</th>
+</tr>
 </table>
 
-<button class="back" onclick="location.href='game.html'">⬅ Back</button>
+<button onclick="back()">Back to Game</button>
 
 <script>
 const firebaseConfig = {
@@ -57,70 +51,54 @@ const firebaseConfig = {
   authDomain: "ac-colour-prediction.firebaseapp.com",
   projectId: "ac-colour-prediction",
   storageBucket: "ac-colour-prediction.appspot.com",
-  messagingSenderId: "471938348888",
-  appId: "1:471938348888:web:ac3fc3eb1939eb7cbe172d"
 };
 firebase.initializeApp(firebaseConfig);
 
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-/* AUTO LOAD */
-auth.onAuthStateChanged(async(u)=>{
+auth.onAuthStateChanged(async (u)=>{
   if(!u) location.href="index.html";
-  loadBets(u.uid);
-  loadWithdraws(u.uid);
+  loadTransactions(u.uid);
+  loadWithdrawals(u.uid);
 });
 
-/* LOAD BET HISTORY */
-async function loadBets(uid){
+async function loadTransactions(uid){
   const snap = await db.collection("transactions")
     .where("uid","==",uid)
-    .orderBy("time","desc")
-    .limit(50)
-    .get();
-
-  const table = document.getElementById("betTable");
-
+    .orderBy("time","desc").limit(50).get();
+    
+  const table = document.getElementById("transTable");
   snap.forEach(doc=>{
     const d = doc.data();
     const row = table.insertRow(-1);
-
-    row.insertCell(0).innerText = new Date(d.time).toLocaleString();
-    row.insertCell(1).innerText = d.bet;
-    row.insertCell(2).innerText = d.color;
-    row.insertCell(3).innerText = d.result;
-
-    const status = row.insertCell(4);
-    status.innerText = d.win ? "WIN" : "LOSE";
-    status.className = d.win ? "win" : "lose";
+    const t = new Date(d.time.seconds*1000).toLocaleString();
+    row.insertCell(0).innerText = t;
+    row.insertCell(1).innerText = d.bet || "-";
+    row.insertCell(2).innerText = d.color || "-";
+    row.insertCell(3).innerText = d.result || "-";
+    row.insertCell(4).innerText = d.win ? "WIN" : "LOSE";
+    row.cells[4].className = d.win ? "win" : "lose";
   });
 }
 
-/* LOAD WITHDRAW HISTORY */
-async function loadWithdraws(uid){
-  const snap = await db.collection("withdrawal")
+async function loadWithdrawals(uid){
+  const snap = await db.collection("withdrawals")
     .where("uid","==",uid)
-    .orderBy("time","desc")
-    .limit(50)
-    .get();
-
-  const table = document.getElementById("withTable");
-
+    .orderBy("requestedAt","desc").get();
+    
+  const table = document.getElementById("withdrawTable");
   snap.forEach(doc=>{
     const d = doc.data();
     const row = table.insertRow(-1);
-
-    row.insertCell(0).innerText = new Date(d.time).toLocaleString();
-    row.insertCell(1).innerText = d.amount;
-    row.insertCell(2).innerText = d.upi;
-
-    const st = row.insertCell(3);
-    st.innerText = d.status;
-    st.className = d.status === "Pending" ? "pending" :
-                   d.status === "Approved" ? "win" : "lose";
+    const t = new Date(d.requestedAt.seconds*1000).toLocaleString();
+    row.insertCell(0).innerText = t;
+    row.insertCell(1).innerText = d.coins;
+    row.insertCell(2).innerText = d.status;
   });
 }
+
+function back(){ location.href="game.html"; }
 </script>
 
 </body>
