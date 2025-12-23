@@ -11,7 +11,7 @@
   <style>
     body{background:#111;color:#fff;font-family:Arial;padding:10px}
     h2,h3{text-align:center}
-    button{padding:8px;margin:5px;font-weight:bold}
+    button{padding:8px;margin:5px;font-weight:bold;cursor:pointer}
     table{width:100%;border-collapse:collapse;margin-top:10px}
     th,td{border:1px solid #555;padding:6px;text-align:center}
     .red{background:red;color:#fff}
@@ -53,55 +53,70 @@ firebase.initializeApp(firebaseConfig);
 
 const auth = firebase.auth();
 const db = firebase.firestore();
-const ADMIN_MOBILE = "9999999999";
+const ADMIN_EMAIL = "admin@gmail.com";
 
 auth.onAuthStateChanged(async user=>{
-  if(!user){ alert("Not Authorized"); location.href="index.html"; return; }
-  const doc = await db.collection("users").doc(user.uid).get();
-  if(doc.data().mobile !== ADMIN_MOBILE){ alert("Not Authorized"); location.href="index.html"; return; }
+  if(!user || user.email !== ADMIN_EMAIL){
+    alert("Not Authorized");
+    location.href="index.html";
+    return;
+  }
   loadUsers();
   loadWithdrawals();
 });
 
-function setResult(color){ db.collection("admin").doc("result").set({color}); alert("Result set: "+color); }
+function setResult(color){
+  db.collection("admin").doc("result").set({color});
+  alert("Result set: "+color);
+}
 
 function loadUsers(){
-  db.collection("users").onSnapshot(snap=>{
+  db.collection("users").onSnapshot(snapshot=>{
     let html=`<tr><th>Mobile</th><th>Coins</th><th>UPI</th><th>Add Coins</th></tr>`;
-    snap.forEach(doc=>{
-      const d=doc.data();
-      html+=`<tr>
-        <td>${d.mobile||""}</td>
+    snapshot.forEach(doc=>{
+      const d = doc.data();
+      html += `<tr>
+        <td>${d.mobile||"-"}</td>
         <td>${d.coins||0}</td>
         <td>${d.upi||"-"}</td>
         <td><button onclick="addCoins('${doc.id}')">+100</button></td>
       </tr>`;
     });
-    usersTable.innerHTML = html;
+    document.getElementById("usersTable").innerHTML = html;
   });
 }
 
-function addCoins(uid){ db.collection("users").doc(uid).update({coins: firebase.firestore.FieldValue.increment(100)}); }
+function addCoins(uid){
+  db.collection("users").doc(uid).update({
+    coins: firebase.firestore.FieldValue.increment(100)
+  });
+}
 
 function loadWithdrawals(){
-  db.collection("withdrawals").onSnapshot(snap=>{
+  db.collection("withdrawals").onSnapshot(snapshot=>{
     let html=`<tr><th>User</th><th>Coins</th><th>UPI</th><th>Status</th><th>Action</th></tr>`;
-    snap.forEach(doc=>{
-      const d=doc.data();
-      html+=`<tr>
-        <td>${d.mobile}</td>
-        <td>${d.coins}</td>
-        <td>${d.upi}</td>
-        <td>${d.status}</td>
+    snapshot.forEach(doc=>{
+      const d = doc.data();
+      html += `<tr>
+        <td>${d.mobile || "-"}</td>
+        <td>${d.coins || 0}</td>
+        <td>${d.upi || "-"}</td>
+        <td>${d.status || "Pending"}</td>
         <td>${d.status=="Pending"?`<button onclick="approve('${doc.id}')">Approve</button>`:""}</td>
       </tr>`;
     });
-    withdrawTable.innerHTML = html;
+    document.getElementById("withdrawTable").innerHTML = html;
   });
 }
 
-function approve(id){ db.collection("withdrawals").doc(id).update({status:"Approved"}); }
-function logout(){ auth.signOut(); location.href="index.html"; }
+function approve(id){
+  db.collection("withdrawals").doc(id).update({status:"Approved"});
+}
+
+function logout(){
+  auth.signOut();
+  location.href="index.html";
+}
 </script>
 </body>
 </html>
