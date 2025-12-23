@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>AC Colour Prediction - Pro JILI UI</title>
+  <title>AC Colour Prediction - PRO</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -29,7 +28,6 @@
     .logout{background:#fff;color:#000;width:40%;margin-top:12px;}
   </style>
 </head>
-
 <body>
 
 <div class="top-buttons">
@@ -46,10 +44,9 @@
 <div class="history" id="history"></div>
 
 <select id="betAmount">
-  <option value="10">Bet 10</option>
-  <option value="20">Bet 20</option>
   <option value="50">Bet 50</option>
   <option value="100">Bet 100</option>
+  <option value="200">Bet 200</option>
   <option value="500">Bet 500</option>
 </select>
 
@@ -70,9 +67,6 @@ const firebaseConfig = {
   apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
   authDomain: "ac-colour-prediction.firebaseapp.com",
   projectId: "ac-colour-prediction",
-  storageBucket: "ac-colour-prediction.appspot.com",
-  messagingSenderId: "471938348888",
-  appId: "1:471938348888:web:ac3fc3eb1939eb7cbe172d"
 };
 firebase.initializeApp(firebaseConfig);
 
@@ -83,7 +77,7 @@ let coins = 0;
 let pick = "";
 let time = 30;
 
-/* ---------------- AUTO LOGIN ---------------- */
+/* -------------------- AUTO LOGIN + NEW USER -------------------- */
 auth.onAuthStateChanged(async (u) => {
   if (!u) { location.href="index.html"; return; }
 
@@ -91,15 +85,7 @@ auth.onAuthStateChanged(async (u) => {
   const docSnap = await userRef.get();
 
   if (!docSnap.exists) {
-    await userRef.set({
-      email: u.email,
-      coins: 30,
-      createdAt: new Date(),
-      upi: "",
-      bank: "",
-      account: "",
-      ifsc: ""
-    });
+    await userRef.set({ email: u.email, coins: 30, createdAt: new Date(), upi:"", bank:"", account:"", ifsc:"" });
   }
 
   const data = (await userRef.get()).data();
@@ -107,63 +93,64 @@ auth.onAuthStateChanged(async (u) => {
   document.getElementById("coins").innerText = coins;
 });
 
-/* ---------------- BET ---------------- */
+/* -------------------- BET -------------------- */
 function bet(color){
   const betAmt = parseInt(document.getElementById("betAmount").value);
-
-  if (coins < betAmt) {
-    msg.innerText = "❌ Not enough coins";
+  if(coins < betAmt){
+    document.getElementById("msg").innerText = "❌ Not enough coins!";
     return;
   }
-
   pick = color;
-  msg.innerText = "Selected: " + color;
+  document.getElementById("msg").innerText = "Selected: " + color;
 }
 
-/* ---------------- TIMER ---------------- */
-setInterval(()=>{
+/* -------------------- TIMER -------------------- */
+setInterval(()=> {
   time--;
-  document.getElementById("bar").style.width = (time/30*100)+"%";
-  if(time<=0){ runResult(); time=30; }
-},1000);
+  document.getElementById("bar").style.width = (time/30*100) + "%";
+  if(time <=0){ runResult(); time=30; }
+}, 1000);
 
-/* ---------------- RESULT SYSTEM ---------------- */
+/* -------------------- RUN RESULT -------------------- */
 async function runResult(){
   const betAmt = parseInt(document.getElementById("betAmount").value);
+  if(!pick || coins < betAmt){ loadHistory(); return; }
 
-  if (!pick || coins < betAmt){
-    loadHistory();
-    return;
-  }
-
-  const adminDoc = await db.collection("admin").doc("result").get();
   let winColor;
 
-  if(adminDoc.exists && adminDoc.data().color){
+  // Check admin manual result
+  const adminDoc = await db.collection("admin").doc("result").get();
+  const autoDoc = await db.collection("admin").doc("auto").get();
+  const autoEnabled = autoDoc.exists ? autoDoc.data().enabled : false;
+
+  if(adminDoc.exists && adminDoc.data().color && adminDoc.data().mode === "manual"){
     winColor = adminDoc.data().color;
+    // Clear manual result after 1 round
+    await db.collection("admin").doc("result").delete();
   } else {
+    // Auto Random
     winColor = ["Red","Green","Violet"][Math.floor(Math.random()*3)];
   }
 
-  let win = (pick === winColor);
+  const win = (pick === winColor);
+
   if(win){
-    coins += betAmt * 2;
+    coins += betAmt*2;
     winSound.play();
     msg.innerText = "🎉 WIN — " + winColor;
-  }else{
+  } else {
     coins -= betAmt;
     loseSound.play();
     msg.innerText = "❌ LOSE — " + winColor;
   }
 
-  coins = Math.max(coins, 0);
+  coins = Math.max(coins,0);
   document.getElementById("coins").innerText = coins;
 
   const u = auth.currentUser;
   if(u){
-    db.collection("users").doc(u.uid).update({coins});
-
-    db.collection("transactions").add({
+    await db.collection("users").doc(u.uid).update({coins});
+    await db.collection("transactions").add({
       uid: u.uid,
       bet: betAmt,
       color: pick,
@@ -171,17 +158,18 @@ async function runResult(){
       win: win,
       time: new Date()
     });
+    await db.collection("rounds").add({result:winColor, time: new Date()});
   }
 
   pick = "";
   loadHistory();
 }
 
-/* ---------------- HISTORY ---------------- */
+/* -------------------- LOAD HISTORY -------------------- */
 async function loadHistory(){
   const snap = await db.collection("rounds").orderBy("time","desc").limit(10).get();
   const historyEl = document.getElementById("history");
-  historyEl.innerHTML = "";
+  historyEl.innerHTML="";
   snap.forEach(doc=>{
     const c = doc.data().result;
     const div = document.createElement("div");
@@ -190,13 +178,10 @@ async function loadHistory(){
     historyEl.appendChild(div);
   });
 }
-loadHistory();
 
-/* ---------------- LOGOUT ---------------- */
-function logout(){
-  auth.signOut().then(()=>location.href="index.html");
-}
+/* -------------------- LOGOUT -------------------- */
+function logout(){ auth.signOut().then(()=>location.href="index.html"); }
+
 </script>
-
 </body>
 </html>
