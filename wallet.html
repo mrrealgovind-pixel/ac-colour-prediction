@@ -1,39 +1,29 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Wallet - AC Colour Prediction</title>
+  <title>Wallet</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
   <style>
-    body{background:#111;color:#fff;font-family:Arial;text-align:center;padding-top:30px}
-    input,button{padding:12px;margin:8px;width:80%;font-size:16px}
-    button{background:#ff9800;border:none;color:#000;font-weight:bold}
-    .box{background:#000;padding:20px;margin:15px;border-radius:8px}
+    body{font-family:Arial;background:#111;color:#fff;text-align:center;padding:15px;}
+    input,button{width:80%;padding:12px;margin:6px;border-radius:6px;border:none;font-size:16px;}
+    button{background:#ff9800;color:#000;font-weight:bold;cursor:pointer;}
+    h2,h3{margin:10px;}
   </style>
 </head>
-
 <body>
 
-<h2>💰 My Wallet</h2>
+<h2>Wallet</h2>
+<p>Coins: <span id="coins">0</span></p>
 
-<div class="box">
-  <p>Available Coins</p>
-  <h1 id="coins">0</h1>
-</div>
+<input id="withdrawAmount" placeholder="Enter coins to withdraw">
+<button onclick="requestWithdrawal()">Request Withdrawal</button>
+<button onclick="back()">Back to Game</button>
 
-<div class="box">
-  <h3>Withdraw Coins</h3>
-  <input id="amount" type="number" placeholder="Enter amount (min 100)">
-  <input id="upi" placeholder="Enter UPI ID">
-  <button onclick="withdraw()">Request Withdraw</button>
-  <p id="msg"></p>
-</div>
-
-<button onclick="goBack()">⬅ Back to Game</button>
+<p id="msg"></p>
 
 <script>
 const firebaseConfig = {
@@ -47,54 +37,37 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 let coins = 0;
+let userData = null;
 
-auth.onAuthStateChanged(user=>{
-  if(!user){
-    location.href="index.html";
-  }else{
-    db.collection("users").doc(user.uid).get().then(d=>{
-      coins = d.data().coins;
-      document.getElementById("coins").innerText = coins;
-    });
+auth.onAuthStateChanged(async (u)=>{
+  if(!u) location.href="index.html";
+  const doc = await db.collection("users").doc(u.uid).get();
+  if(doc.exists){
+    userData = doc.data();
+    coins = userData.coins || 0;
+    document.getElementById("coins").innerText = coins;
   }
 });
 
-function withdraw(){
-  const amt = parseInt(amount.value);
-  const upiId = upi.value.trim();
-  const user = auth.currentUser;
-
-  if(amt < 100){
-    msg.innerText = "Minimum withdraw 100 coins";
-    return;
-  }
-  if(amt > coins){
-    msg.innerText = "Insufficient balance";
-    return;
-  }
-  if(!upiId.includes("@")){
-    msg.innerText = "Invalid UPI ID";
-    return;
-  }
-
+function requestWithdrawal(){
+  const amt = parseInt(withdrawAmount.value);
+  if(!amt || amt > coins) { msg.innerText="❌ Invalid amount"; return; }
+  const u = auth.currentUser;
+  if(!u) return;
+  // Save withdrawal request
   db.collection("withdrawals").add({
-    uid: user.uid,
-    email: user.email,
-    amount: amt,
-    upi: upiId,
-    status: "pending",
-    time: firebase.firestore.FieldValue.serverTimestamp()
+    uid: u.uid,
+    email: userData.email,
+    coins: amt,
+    upi: userData.upi || "",
+    status: "Pending",
+    requestedAt: new Date()
   }).then(()=>{
-    coins -= amt;
-    db.collection("users").doc(user.uid).update({ coins });
-    document.getElementById("coins").innerText = coins;
-    msg.innerText = "✅ Withdrawal request sent";
+    msg.innerText="✅ Withdrawal requested";
   });
 }
 
-function goBack(){
-  location.href="game.html";
-}
+function back(){ location.href="game.html"; }
 </script>
 
 </body>
