@@ -1,104 +1,84 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Transaction History</title>
+  <title>History - AC Colour Prediction</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
   <style>
-    body{font-family:Arial;background:#111;color:#fff;text-align:center;padding:15px;}
-    table{width:100%;border-collapse:collapse;margin-top:15px;}
-    th,td{border:1px solid #555;padding:8px;text-align:center;}
-    th{background:#222;}
-    .win{color:#00ff00;font-weight:bold;}
-    .lose{color:#ff5252;font-weight:bold;}
-    .approve{background:#00e676;color:#000;}
-    .reject{background:#ff5252;color:#fff;}
-    button{padding:10px;margin-top:10px;background:#ff9800;border:none;color:#000;font-weight:bold;border-radius:6px;cursor:pointer;}
+    body { background:#111;color:#fff;font-family:Arial;padding:10px; }
+    h2 { text-align:center; }
+    .card {
+      background:#222;padding:10px;margin:8px;border-radius:8px;
+      border-left:5px solid #0af;
+    }
+    .green { border-left-color: #00e676; }
+    .red { border-left-color: #ff5252; }
+    .orange { border-left-color: #ffab00; }
   </style>
 </head>
 <body>
 
-<h2>Transaction & Withdrawal History</h2>
+<h2>Transaction History</h2>
 
-<h3>🎮 Game Transactions</h3>
-<table id="transTable">
-<tr>
-  <th>Time</th>
-  <th>Bet</th>
-  <th>Picked</th>
-  <th>Result</th>
-  <th>Win/Lose</th>
-</tr>
-</table>
-
-<h3>💸 Withdrawals</h3>
-<table id="withdrawTable">
-<tr>
-  <th>Time</th>
-  <th>Coins</th>
-  <th>Status</th>
-</tr>
-</table>
-
-<button onclick="back()">Back to Game</button>
+<div id="historyBox">Loading...</div>
 
 <script>
+/* ---------- FIREBASE ---------- */
 const firebaseConfig = {
   apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
   authDomain: "ac-colour-prediction.firebaseapp.com",
-  projectId: "ac-colour-prediction",
-  storageBucket: "ac-colour-prediction.appspot.com",
+  projectId: "ac-colour-prediction"
 };
 firebase.initializeApp(firebaseConfig);
-
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-auth.onAuthStateChanged(async (u)=>{
-  if(!u) location.href="index.html";
-  loadTransactions(u.uid);
-  loadWithdrawals(u.uid);
+/* ---------- AUTH CHECK ---------- */
+auth.onAuthStateChanged(user=>{
+  if(!user){
+    location.href="index.html";
+  } else {
+    loadHistory(user.uid);
+  }
 });
 
-async function loadTransactions(uid){
-  const snap = await db.collection("transactions")
-    .where("uid","==",uid)
-    .orderBy("time","desc").limit(50).get();
-    
-  const table = document.getElementById("transTable");
-  snap.forEach(doc=>{
-    const d = doc.data();
-    const row = table.insertRow(-1);
-    const t = new Date(d.time.seconds*1000).toLocaleString();
-    row.insertCell(0).innerText = t;
-    row.insertCell(1).innerText = d.bet || "-";
-    row.insertCell(2).innerText = d.color || "-";
-    row.insertCell(3).innerText = d.result || "-";
-    row.insertCell(4).innerText = d.win ? "WIN" : "LOSE";
-    row.cells[4].className = d.win ? "win" : "lose";
-  });
-}
+/* ---------- LOAD HISTORY ---------- */
+function loadHistory(uid){
+  db.collection("transactions")
+    .where("uid", "==", uid)
+    .orderBy("time", "desc")
+    .onSnapshot(snap=>{
+      let html = "";
 
-async function loadWithdrawals(uid){
-  const snap = await db.collection("withdrawals")
-    .where("uid","==",uid)
-    .orderBy("requestedAt","desc").get();
-    
-  const table = document.getElementById("withdrawTable");
-  snap.forEach(doc=>{
-    const d = doc.data();
-    const row = table.insertRow(-1);
-    const t = new Date(d.requestedAt.seconds*1000).toLocaleString();
-    row.insertCell(0).innerText = t;
-    row.insertCell(1).innerText = d.coins;
-    row.insertCell(2).innerText = d.status;
-  });
-}
+      if(snap.empty){
+        historyBox.innerHTML = "<p>No history found.</p>";
+        return;
+      }
 
-function back(){ location.href="game.html"; }
+      snap.forEach(doc=>{
+        const t = doc.data();
+        let colorClass = "card";
+
+        if(t.type.includes("Win")) colorClass += " green";
+        else if(t.type.includes("Lose")) colorClass += " red";
+        else colorClass += " orange";
+
+        html += `
+          <div class="${colorClass}">
+            <b>${t.type}</b><br>
+            Coins: <b>${t.coins}</b><br>
+            <small>${t.time ? t.time.toDate().toLocaleString() : ""}</small>
+          </div>
+        `;
+      });
+
+      historyBox.innerHTML = html;
+    });
+}
 </script>
 
 </body>
