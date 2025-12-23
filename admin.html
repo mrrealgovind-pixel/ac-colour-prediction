@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Admin Panel - AC Colour Prediction</title>
+  <title>Admin Panel - AC Colour Prediction (PRO)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -18,38 +19,41 @@
     .violet{background:violet;color:#fff;}
     .approve{background:#00e676;color:#000;}
     .reject{background:#ff5252;color:#fff;}
+    .autoOn{background:#00b0ff;color:#fff;}
+    .autoOff{background:#ffab00;color:#000;}
   </style>
 </head>
 <body>
 
-<h2>ADMIN PANEL</h2>
+<h2>ADMIN PANEL (PRO)</h2>
 
-<h3>🎯 Set Game Result</h3>
+<hr>
+
+<h3>⚡ Auto / Manual Result System</h3>
+
+<button class="autoOn" onclick="enableAuto()">ENABLE AUTO RESULT</button>
+<button class="autoOff" onclick="disableAuto()">DISABLE AUTO RESULT</button>
+
+<p id="autoStatus">Loading...</p>
+
+<h3>🎯 Manual Result Set</h3>
 <button class="red" onclick="setResult('Red')">RED</button>
 <button class="green" onclick="setResult('Green')">GREEN</button>
 <button class="violet" onclick="setResult('Violet')">VIOLET</button>
 
+<hr>
+
 <h3>👥 Users</h3>
 <table id="usersTable">
 <tr>
-<th>Email</th>
-<th>Coins</th>
-<th>UPI</th>
-<th>Bank</th>
-<th>Account</th>
-<th>IFSC</th>
-<th>Add Coins</th>
+<th>Email</th><th>Coins</th><th>UPI</th><th>Bank</th><th>Account</th><th>IFSC</th><th>Add Coins</th>
 </tr>
 </table>
 
 <h3>💸 Withdrawal Requests</h3>
 <table id="withdrawTable">
 <tr>
-<th>User</th>
-<th>Coins</th>
-<th>UPI / Bank</th>
-<th>Status</th>
-<th>Action</th>
+<th>User</th><th>Coins</th><th>UPI / Bank</th><th>Status</th><th>Action</th>
 </tr>
 </table>
 
@@ -60,42 +64,73 @@ const firebaseConfig = {
   apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
   authDomain: "ac-colour-prediction.firebaseapp.com",
   projectId: "ac-colour-prediction",
-  storageBucket: "ac-colour-prediction.appspot.com",
-  messagingSenderId: "471938348888",
-  appId: "1:471938348888:web:ac3fc3eb1939eb7cbe172d"
 };
 firebase.initializeApp(firebaseConfig);
+
 const auth = firebase.auth();
 const db = firebase.firestore();
 
 const ADMIN_EMAIL = "admin@gmail.com";
 
-// ✅ AUTH CHECK
+/* --------------------- AUTH CHECK --------------------- */
 auth.onAuthStateChanged(user=>{
   if(!user || user.email !== ADMIN_EMAIL){
     alert("Not Authorized");
-    location.href="index.html";
+    location.href = "index.html";
   } else {
+    loadAutoStatus();
     loadUsers();
     loadWithdrawals();
   }
 });
 
-// -------------------- SET RESULT --------------------
-function setResult(color){
-  db.collection("admin").doc("result").set({color});
-  alert("Result set: " + color);
+/* --------------------- AUTO SYSTEM --------------------- */
+async function enableAuto(){
+  await db.collection("admin").doc("auto").set({
+    enabled:true,
+    updated:new Date()
+  });
+  alert("Auto Result Enabled");
+  loadAutoStatus();
+}
+async function disableAuto(){
+  await db.collection("admin").doc("auto").set({
+    enabled:false,
+    updated:new Date()
+  });
+  alert("Auto Result Disabled");
+  loadAutoStatus();
+}
+async function loadAutoStatus(){
+  const doc = await db.collection("admin").doc("auto").get();
+  if(doc.exists && doc.data().enabled){
+    autoStatus.innerText = "AUTO RESULT: ENABLED";
+  } else {
+    autoStatus.innerText = "AUTO RESULT: DISABLED";
+  }
 }
 
-// -------------------- LOAD USERS --------------------
+/* --------------------- MANUAL RESULT --------------------- */
+async function setResult(color){
+  await db.collection("admin").doc("result").set({
+    color: color,
+    mode: "manual",
+    timestamp: new Date()
+  });
+  alert("Manual Result Set: " + color);
+}
+
+/* --------------------- USERS LIST --------------------- */
 function loadUsers(){
   db.collection("users").onSnapshot(snap=>{
     let html = `<tr>
       <th>Email</th><th>Coins</th><th>UPI</th><th>Bank</th><th>Account</th><th>IFSC</th><th>Add Coins</th>
     </tr>`;
+
     snap.forEach(doc=>{
       const d = doc.data();
-      html += `<tr>
+      html += `
+      <tr>
         <td>${d.email||""}</td>
         <td>${d.coins||0}</td>
         <td>${d.upi||"-"}</td>
@@ -108,76 +143,88 @@ function loadUsers(){
         </td>
       </tr>`;
     });
+
     usersTable.innerHTML = html;
   });
 }
 
-// -------------------- ADD COINS --------------------
-function addCoins(uid,amount){
-  db.collection("users").doc(uid).update({
+/* --------------------- ADD COINS --------------------- */
+async function addCoins(uid, amount){
+  await db.collection("users").doc(uid).update({
     coins: firebase.firestore.FieldValue.increment(amount)
   });
-  // Record transaction
+
   db.collection("transactions").add({
-    uid: uid,
-    type: "Admin Added Coins",
+    uid,
+    type:"Admin Added Coins",
     coins: amount,
-    status: "Completed",
-    time: new Date()
+    status:"Completed",
+    time:new Date()
   });
+
+  alert("Coins Added");
 }
 
-// -------------------- LOAD WITHDRAWALS --------------------
+/* --------------------- WITHDRAWAL REQUESTS --------------------- */
 function loadWithdrawals(){
   db.collection("withdrawals").orderBy("requestedAt","desc").onSnapshot(snap=>{
-    let html = `<tr><th>User</th><th>Coins</th><th>UPI / Bank</th><th>Status</th><th>Action</th></tr>`;
+    let html = `<tr>
+    <th>User</th><th>Coins</th><th>UPI / Bank</th><th>Status</th><th>Action</th>
+    </tr>`;
+
     snap.forEach(doc=>{
       const d = doc.data();
-      html += `<tr>
+
+      html += `
+      <tr>
         <td>${d.email}</td>
         <td>${d.coins}</td>
-        <td>${d.upi||d.bank||"-"}</td>
+        <td>${d.upi || d.bank || "-"}</td>
         <td>${d.status}</td>
-        <td>${d.status==="Pending"?`
-          <button class="approve" onclick="handleWithdrawal('${doc.id}',true,${d.coins},'${d.uid}')">Approve</button>
-          <button class="reject" onclick="handleWithdrawal('${doc.id}',false,${d.coins},'${d.uid}')">Reject</button>
-        `:"-"}</td>
+        <td>
+          ${d.status === "Pending" ? `
+            <button class="approve" onclick="handleWithdrawal('${doc.id}',true,${d.coins},'${d.uid}')">Approve</button>
+            <button class="reject" onclick="handleWithdrawal('${doc.id}',false,${d.coins},'${d.uid}')">Reject</button>
+          ` : "-"}
+        </td>
       </tr>`;
     });
+
     withdrawTable.innerHTML = html;
   });
 }
 
-// -------------------- HANDLE WITHDRAWAL --------------------
+/* --------------------- HANDLE WITHDRAWAL --------------------- */
 async function handleWithdrawal(id, approve, coins, uid){
   const userRef = db.collection("users").doc(uid);
-  const transRef = db.collection("transactions");
-
+  const data = (await userRef.get()).data();
+  
   if(approve){
-    const userDoc = await userRef.get();
-    const currentCoins = userDoc.data().coins || 0;
-    if(currentCoins >= coins){
-      await userRef.update({coins: currentCoins - coins});
+    if(data.coins >= coins){
+      await userRef.update({coins: data.coins - coins});
       await db.collection("withdrawals").doc(id).update({status:"Approved"});
-      await transRef.add({uid, type:"Withdrawal", coins, status:"Approved", time:new Date()});
-      alert("✅ Withdrawal Approved & Coins Deducted");
     } else {
-      alert("❌ User has insufficient coins");
+      alert("User does not have enough coins");
+      return;
     }
   } else {
-    // Reject withdrawal: return coins
-    await userRef.update({coins: firebase.firestore.FieldValue.increment(coins)});
     await db.collection("withdrawals").doc(id).update({status:"Rejected"});
-    await transRef.add({uid, type:"Withdrawal", coins, status:"Rejected", time:new Date()});
-    alert("❌ Withdrawal Rejected & Coins Refunded");
   }
-  loadWithdrawals();
+
+  await db.collection("transactions").add({
+    uid,
+    type:"Withdrawal",
+    coins,
+    status: approve ? "Approved" : "Rejected",
+    time:new Date()
+  });
+
+  alert(approve ? "Approved" : "Rejected");
 }
 
-// -------------------- LOGOUT --------------------
+/* --------------------- LOGOUT --------------------- */
 function logout(){
-  auth.signOut();
-  location.href="index.html";
+  auth.signOut().then(()=>location.href="index.html");
 }
 </script>
 
