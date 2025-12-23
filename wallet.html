@@ -1,207 +1,183 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Wallet</title>
+<title>Wallet - AC Colour Prediction</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 
 <style>
-body{
-    background:#0d0d0d;
-    color:#fff;
-    font-family:Arial;
-    padding:15px;
-}
-.card{
-    background:#1a1a1a;
-    padding:15px;
-    margin-top:15px;
-    border-radius:10px;
-}
-button{
-    width:100%;
-    padding:12px;
-    background:#00e676;
-    color:#000;
-    border:none;
-    font-weight:bold;
-    border-radius:8px;
-    margin-top:10px;
-}
-input{
-    width:100%;
-    padding:10px;
-    margin-top:10px;
-    background:#222;
-    color:#fff;
-    border:none;
-    border-radius:6px;
-}
-.historyBox{
-    background:#111;
-    padding:10px;
-    border-radius:8px;
-    margin-top:8px;
-    border:1px solid #333;
-}
+body{background:#111;color:#fff;font-family:Arial;padding:10px;}
+h2{text-align:center;}
+button,input{padding:10px;border-radius:6px;border:none;margin:5px;font-weight:bold;}
+.recharge{background:#00e5ff;color:#000;}
+.withdraw{background:#ffca28;color:#000;}
 </style>
-
 </head>
-
 <body>
 
-<h2>💼 My Wallet</h2>
+<h2>My Wallet</h2>
 
-<div class="card">
-    <h3>Available Coins: <span id="coins">0</span></h3>
-</div>
+<p>Coins: <span id="coins">0</span></p>
 
-<!-- Add Coins -->
-<div class="card">
-    <h3>✨ Add Coins</h3>
-    <input type="number" id="addAmount" placeholder="Enter amount">
-    <button onclick="proceedRecharge()">Proceed to Recharge</button>
-</div>
+<hr>
 
-<!-- Withdraw Coins -->
-<div class="card">
-    <h3>💸 Withdraw Coins</h3>
-    <input type="number" id="withdrawAmount" placeholder="Enter amount">
-    <button onclick="withdrawCoins()">Withdraw</button>
-</div>
+<h3>Admin UPI ID</h3>
+<p id="adminUpi" style="font-size:18px;color:#00e676;">Loading...</p>
 
-<!-- Recharge History -->
-<div class="card">
-    <h3>🧾 Recharge History</h3>
-    <div id="rechHistory"></div>
-</div>
+<hr>
 
-<!-- Withdrawal History -->
-<div class="card">
-    <h3>📤 Withdrawal History</h3>
-    <div id="wdHistory"></div>
-</div>
+<h3>Add Coins</h3>
+<input type="number" id="amount" placeholder="Enter Amount">
+<input type="file" id="ssFile" accept="image/*">
+
+<button class="recharge" onclick="sendRecharge()">Proceed To Recharge</button>
+
+<hr>
+
+<h3>Withdrawal</h3>
+<input type="number" id="wAmount" placeholder="Enter Withdrawal Amount">
+<button class="withdraw" onclick="withdraw()">Withdraw</button>
+
+<hr>
+
+<h3>Recharge History</h3>
+<div id="rechHistory">Loading...</div>
+
+<hr>
+
+<h3>Withdrawal History</h3>
+<div id="withHistory">Loading...</div>
 
 <script>
-/* ------ Firebase Config ------ */
 const firebaseConfig = {
   apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
   authDomain: "ac-colour-prediction.firebaseapp.com",
-  projectId: "ac-colour-prediction"
+  projectId: "ac-colour-prediction",
+  storageBucket: "ac-colour-prediction.appspot.com"
 };
 firebase.initializeApp(firebaseConfig);
 
 const auth = firebase.auth();
 const db = firebase.firestore();
+const storage = firebase.storage();
 
-let UID = "";
+let USER_ID = "";
+let USER_EMAIL = "";
 
-/* ------ AUTH ------ */
+/* ================= LOGIN CHECK ================= */
 auth.onAuthStateChanged(user=>{
-    if(!user) location.href="index.html";
-    UID = user.uid;
-    loadCoins();
-    loadRechargeHistory();
-    loadWithdrawalHistory();
+  if(!user){
+    location.href="login.html";
+  } else {
+    USER_ID = user.uid;
+    USER_EMAIL = user.email;
+    loadWallet();
+    loadUPI();
+    loadHistory();
+  }
 });
 
-/* ------ Load Coins ------ */
-function loadCoins(){
-    db.collection("users").doc(UID).onSnapshot(doc=>{
-        document.getElementById("coins").innerText = doc.data().coins || 0;
-    });
+/* ================= LOAD LIVE COINS ================= */
+function loadWallet(){
+  db.collection("users").doc(USER_ID).onSnapshot(d=>{
+    coins.innerText = d.data().coins || 0;
+  });
 }
 
-/* ------ Proceed Recharge ------ */
-function proceedRecharge(){
-    let amount = document.getElementById("addAmount").value;
-
-    if(amount < 50){
-        alert("Minimum recharge is 50.");
-        return;
+/* ================= SHOW ADMIN UPI TO USER ================= */
+function loadUPI(){
+  db.collection("admin").doc("upi").onSnapshot(doc=>{
+    if(doc.exists){
+      adminUpi.innerHTML = doc.data().upi;
+    } else {
+      adminUpi.innerHTML = "Admin has not set UPI ID";
     }
-
-    window.location.href = "recharge.html?amount=" + amount;  
+  });
 }
 
-/* ------ Withdraw Coins ------ */
-async function withdrawCoins(){
-    let amount = Number(document.getElementById("withdrawAmount").value);
+/* ================= SEND RECHARGE REQUEST ================= */
+async function sendRecharge(){
+  let amt = document.getElementById("amount").value;
+  let file = document.getElementById("ssFile").files[0];
 
-    if(amount < 100){
-        alert("Minimum withdrawal 100 coins");
-        return;
-    }
+  if(!amt) return alert("Enter amount");
+  if(!file) return alert("Upload Screenshot");
 
-    let userDoc = await db.collection("users").doc(UID).get();
-    let balance = userDoc.data().coins;
+  const ref = storage.ref("rechargeSS/" + Date.now() + "_" + file.name);
+  await ref.put(file);
+  const url = await ref.getDownloadURL();
 
-    if(balance < amount){
-        alert("Insufficient balance");
-        return;
-    }
+  await db.collection("walletRequests").add({
+    uid: USER_ID,
+    email: USER_EMAIL,
+    amount: Number(amt),
+    screenshot: url,
+    time: new Date()
+  });
 
-    await db.collection("withdrawals").add({
-        uid: UID,
-        coins: amount,
-        email: userDoc.data().email,
-        upi: userDoc.data().upi || "",
-        status: "Pending",
-        requestedAt: new Date()
+  alert("Recharge Request Sent!");
+  amount.value = "";
+  ssFile.value = "";
+}
+
+/* ================= WITHDRAW ================= */
+async function withdraw(){
+  let amt = document.getElementById("wAmount").value;
+  if(!amt) return alert("Enter amount");
+
+  const userDoc = await db.collection("users").doc(USER_ID).get();
+  let coins = userDoc.data().coins || 0;
+
+  if(coins < amt) return alert("Not enough coins!");
+
+  await db.collection("withdrawals").add({
+    uid: USER_ID,
+    email: USER_EMAIL,
+    coins: Number(amt),
+    requestedAt: new Date(),
+    status: "Pending"
+  });
+
+  alert("Withdrawal Request Sent!");
+  wAmount.value = "";
+}
+
+/* ================= HISTORY ================= */
+function loadHistory(){
+  
+  // Recharge History
+  db.collection("walletRequests")
+    .where("uid","==",USER_ID)
+    .orderBy("time","desc")
+    .onSnapshot(s=>{
+      let html = "";
+      s.forEach(d=>{
+        let h = d.data();
+        html += `<p>Amount: ${h.amount} | <a href="${h.screenshot}" target="_blank">Screenshot</a></p>`;
+      });
+      rechHistory.innerHTML = html || "No records";
     });
 
-    alert("Withdrawal request submitted!");
-}
-
-/* ------ Recharge History ------ */
-function loadRechargeHistory(){
-    db.collection("rechargeRequests")
-      .where("uid","==",UID)
-      .orderBy("time","desc")
-      .onSnapshot(snap=>{
-        
-        let html = "";
-        snap.forEach(doc=>{
-            let d = doc.data();
-            html += `
-                <div class="historyBox">
-                    <b>Amount:</b> ${d.amount} Coins<br>
-                    <b>Status:</b> ${d.status}<br>
-                    <b>Date:</b> ${d.time.toDate().toLocaleString()}
-                </div>
-            `;
-        });
-
-        document.getElementById("rechHistory").innerHTML = html;
+  // Withdraw History
+  db.collection("withdrawals")
+    .where("uid","==",USER_ID)
+    .orderBy("requestedAt","desc")
+    .onSnapshot(s=>{
+      let html = "";
+      s.forEach(d=>{
+        let w = d.data();
+        html += `<p>Amount: ${w.coins} | ${w.status}</p>`;
+      });
+      withHistory.innerHTML = html || "No records";
     });
+
 }
 
-/* ------ Withdrawal History ------ */
-function loadWithdrawalHistory(){
-    db.collection("withdrawals")
-      .where("uid","==",UID)
-      .orderBy("requestedAt","desc")
-      .onSnapshot(snap=>{
-
-        let html = "";
-        snap.forEach(doc=>{
-            let d = doc.data();
-            html += `
-                <div class="historyBox">
-                    <b>Coins:</b> ${d.coins}<br>
-                    <b>Status:</b> ${d.status}<br>
-                    <b>Date:</b> ${d.requestedAt.toDate().toLocaleString()}
-                </div>
-            `;
-        });
-
-        document.getElementById("wdHistory").innerHTML = html;
-    });
-}
 </script>
 
 </body>
-    </html>
+</html>
