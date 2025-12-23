@@ -87,7 +87,8 @@ auth.onAuthStateChanged(async (u) => {
   const docSnap = await userRef.get();
 
   if(!docSnap.exists){
-    await userRef.set({email:u.email, coins:1000, createdAt:new Date(), upi:"", bank:"", account:"", ifsc:""});
+    // ✅ NEW USER GETS 30 COINS INSTEAD OF 1000
+    await userRef.set({email:u.email, coins:30, createdAt:new Date(), upi:"", bank:"", account:"", ifsc:""});
   }
 
   coins = (await userRef.get()).data().coins || 0;
@@ -174,4 +175,4 @@ function logout(){
 </script>
 
 </body>
-</html>
+  </html>
