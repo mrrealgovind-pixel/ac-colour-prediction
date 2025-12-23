@@ -68,21 +68,28 @@ const db = firebase.firestore();
 
 const ADMIN_EMAIL = "admin@gmail.com";
 
+// 🔥 FIX: Admin check correct
 auth.onAuthStateChanged(user=>{
-  if(!user || user.email !== ADMIN_EMAIL){
-    alert("Not Authorized");
+  if(!user){
     location.href="index.html";
-  } else {
-    loadUsers();
-    loadWithdrawals();
   }
+  if(user.email !== ADMIN_EMAIL){
+    alert("Not Authorized");
+    auth.signOut();
+    return;
+  }
+  
+  loadUsers();
+  loadWithdrawals();
 });
 
+// 🎯 Set Game Result
 function setResult(color){
   db.collection("admin").doc("result").set({color});
   alert("Result set: " + color);
 }
 
+// 🧑‍🤝‍🧑 Load Users
 function loadUsers(){
   db.collection("users").onSnapshot(snap=>{
     let html = `<tr><th>Email</th><th>Coins</th><th>UPI</th><th>Add Coins</th></tr>`;
@@ -93,21 +100,21 @@ function loadUsers(){
         <td>${d.email || ""}</td>
         <td>${d.coins || 0}</td>
         <td>${d.upi || "-"}</td>
-        <td>
-          <button onclick="addCoins('${doc.id}')">+100</button>
-        </td>
+        <td><button onclick="addCoins('${doc.id}')">+100</button></td>
       </tr>`;
     });
-    usersTable.innerHTML = html;
+    document.getElementById("usersTable").innerHTML = html;
   });
 }
 
+// ➕ Add Coins
 function addCoins(uid){
   db.collection("users").doc(uid).update({
     coins: firebase.firestore.FieldValue.increment(100)
   });
 }
 
+// 💸 Load Withdrawals
 function loadWithdrawals(){
   db.collection("withdrawals").onSnapshot(snap=>{
     let html = `<tr><th>User</th><th>Coins</th><th>UPI</th><th>Status</th><th>Action</th></tr>`;
@@ -124,14 +131,16 @@ function loadWithdrawals(){
         </td>
       </tr>`;
     });
-    withdrawTable.innerHTML = html;
+    document.getElementById("withdrawTable").innerHTML = html;
   });
 }
 
+// ✔ Approve Withdrawal
 function approve(id){
   db.collection("withdrawals").doc(id).update({status:"Approved"});
 }
 
+// 🚪 Logout
 function logout(){
   auth.signOut();
   location.href="index.html";
