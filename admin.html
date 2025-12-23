@@ -3,24 +3,25 @@
 <head>
   <title>Admin Panel - AC Colour Prediction</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  
+
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
   <style>
-    body{background:#111;color:#fff;font-family:Arial;padding:10px}
-    h2,h3{text-align:center}
-    button{padding:8px;margin:5px;font-weight:bold;cursor:pointer}
-    table{width:100%;border-collapse:collapse;margin-top:10px}
-    th,td{border:1px solid #555;padding:6px;text-align:center}
-    .red{background:red;color:#fff}
-    .green{background:green;color:#fff}
-    .violet{background:violet;color:#000}
+    body{background:#111;color:#fff;font-family:Arial;padding:10px;}
+    h2,h3{text-align:center;}
+    button{padding:8px;margin:5px;font-weight:bold;border-radius:6px;border:none;cursor:pointer;}
+    table{width:100%;border-collapse:collapse;margin-top:10px;}
+    th,td{border:1px solid #555;padding:6px;text-align:center;}
+    .red{background:red;color:#fff;}
+    .green{background:green;color:#fff;}
+    .violet{background:violet;color:#fff;}
+    .approve{background:#00e676;color:#000;}
   </style>
 </head>
-
 <body>
+
 <h2>ADMIN PANEL</h2>
 
 <h3>🎯 Set Game Result</h3>
@@ -30,12 +31,26 @@
 
 <h3>👥 Users</h3>
 <table id="usersTable">
-<tr><th>Mobile</th><th>Coins</th><th>UPI</th><th>Add Coins</th></tr>
+<tr>
+<th>Email</th>
+<th>Coins</th>
+<th>UPI</th>
+<th>Bank</th>
+<th>Account</th>
+<th>IFSC</th>
+<th>Add Coins</th>
+</tr>
 </table>
 
 <h3>💸 Withdrawal Requests</h3>
 <table id="withdrawTable">
-<tr><th>User</th><th>Coins</th><th>UPI</th><th>Status</th><th>Action</th></tr>
+<tr>
+<th>User</th>
+<th>Coins</th>
+<th>UPI</th>
+<th>Status</th>
+<th>Action</th>
+</tr>
 </table>
 
 <button onclick="logout()">Logout</button>
@@ -50,73 +65,100 @@ const firebaseConfig = {
   appId: "1:471938348888:web:ac3fc3eb1939eb7cbe172d"
 };
 firebase.initializeApp(firebaseConfig);
-
 const auth = firebase.auth();
 const db = firebase.firestore();
+
 const ADMIN_EMAIL = "admin@gmail.com";
 
-auth.onAuthStateChanged(async user=>{
+// ✅ AUTH CHECK
+auth.onAuthStateChanged(user=>{
   if(!user || user.email !== ADMIN_EMAIL){
     alert("Not Authorized");
     location.href="index.html";
-    return;
+  } else {
+    loadUsers();
+    loadWithdrawals();
   }
-  loadUsers();
-  loadWithdrawals();
 });
 
+// -------------------- SET RESULT --------------------
 function setResult(color){
   db.collection("admin").doc("result").set({color});
-  alert("Result set: "+color);
+  alert("Result set: " + color);
 }
 
+// -------------------- LOAD USERS --------------------
 function loadUsers(){
-  db.collection("users").onSnapshot(snapshot=>{
-    let html=`<tr><th>Mobile</th><th>Coins</th><th>UPI</th><th>Add Coins</th></tr>`;
-    snapshot.forEach(doc=>{
-      const d = doc.data();
+  db.collection("users").onSnapshot(snap=>{
+    let html = `<tr>
+      <th>Email</th><th>Coins</th><th>UPI</th><th>Bank</th><th>Account</th><th>IFSC</th><th>Add Coins</th>
+    </tr>`;
+    snap.forEach(doc=>{
+      let d = doc.data();
       html += `<tr>
-        <td>${d.mobile||"-"}</td>
+        <td>${d.email||""}</td>
         <td>${d.coins||0}</td>
         <td>${d.upi||"-"}</td>
-        <td><button onclick="addCoins('${doc.id}')">+100</button></td>
+        <td>${d.bank||"-"}</td>
+        <td>${d.account||"-"}</td>
+        <td>${d.ifsc||"-"}</td>
+        <td><button onclick="addCoins('${doc.id}',100)">+100</button>
+        <button onclick="addCoins('${doc.id}',500)">+500</button></td>
       </tr>`;
     });
-    document.getElementById("usersTable").innerHTML = html;
+    usersTable.innerHTML = html;
   });
 }
 
-function addCoins(uid){
+// -------------------- ADD COINS --------------------
+function addCoins(uid,amount){
   db.collection("users").doc(uid).update({
-    coins: firebase.firestore.FieldValue.increment(100)
+    coins: firebase.firestore.FieldValue.increment(amount)
   });
 }
 
+// -------------------- LOAD WITHDRAWALS --------------------
 function loadWithdrawals(){
-  db.collection("withdrawals").onSnapshot(snapshot=>{
-    let html=`<tr><th>User</th><th>Coins</th><th>UPI</th><th>Status</th><th>Action</th></tr>`;
-    snapshot.forEach(doc=>{
-      const d = doc.data();
+  db.collection("withdrawals").onSnapshot(snap=>{
+    let html = `<tr><th>User</th><th>Coins</th><th>UPI</th><th>Status</th><th>Action</th></tr>`;
+    snap.forEach(doc=>{
+      let d = doc.data();
       html += `<tr>
-        <td>${d.mobile || "-"}</td>
-        <td>${d.coins || 0}</td>
-        <td>${d.upi || "-"}</td>
-        <td>${d.status || "Pending"}</td>
-        <td>${d.status=="Pending"?`<button onclick="approve('${doc.id}')">Approve</button>`:""}</td>
+        <td>${d.email}</td>
+        <td>${d.coins}</td>
+        <td>${d.upi||"-"}</td>
+        <td>${d.status}</td>
+        <td>${d.status==="Pending"?`<button class="approve" onclick="approve('${doc.id}',${d.coins},'${d.uid}')">Approve</button>`:""}</td>
       </tr>`;
     });
-    document.getElementById("withdrawTable").innerHTML = html;
+    withdrawTable.innerHTML = html;
   });
 }
 
-function approve(id){
-  db.collection("withdrawals").doc(id).update({status:"Approved"});
+// -------------------- APPROVE WITHDRAWAL --------------------
+function approve(id,coins,uid){
+  // Deduct coins from user
+  const userRef = db.collection("users").doc(uid);
+  userRef.get().then(doc=>{
+    if(doc.exists){
+      const currentCoins = doc.data().coins || 0;
+      if(currentCoins >= coins){
+        userRef.update({coins: currentCoins - coins});
+        db.collection("withdrawals").doc(id).update({status:"Approved"});
+        alert("Withdrawal approved and coins deducted");
+      } else {
+        alert("User has insufficient coins");
+      }
+    }
+  });
 }
 
+// -------------------- LOGOUT --------------------
 function logout(){
   auth.signOut();
   location.href="index.html";
 }
 </script>
+
 </body>
-</html>
+  </html>
