@@ -46,6 +46,8 @@
 <div class="history" id="history"></div>
 
 <select id="betAmount">
+  <option value="10">Bet 10</option>
+  <option value="20">Bet 20</option>
   <option value="50">Bet 50</option>
   <option value="100">Bet 100</option>
   <option value="500">Bet 500</option>
@@ -81,7 +83,7 @@ let coins = 0;
 let pick = "";
 let time = 30;
 
-/* -------------------- AUTO LOGIN + CREATE USER -------------------- */
+/* ---------------- AUTO LOGIN ---------------- */
 auth.onAuthStateChanged(async (u) => {
   if (!u) { location.href="index.html"; return; }
 
@@ -89,7 +91,6 @@ auth.onAuthStateChanged(async (u) => {
   const docSnap = await userRef.get();
 
   if (!docSnap.exists) {
-    // New user gets 30 coins
     await userRef.set({
       email: u.email,
       coins: 30,
@@ -106,33 +107,34 @@ auth.onAuthStateChanged(async (u) => {
   document.getElementById("coins").innerText = coins;
 });
 
-/* -------------------- BET -------------------- */
-function bet(color) {
+/* ---------------- BET ---------------- */
+function bet(color){
   const betAmt = parseInt(document.getElementById("betAmount").value);
 
-  // Prevent bet if coins are less than bet amount
   if (coins < betAmt) {
-    document.getElementById("msg").innerText = "❌ Not enough coins to place this bet";
+    msg.innerText = "❌ Not enough coins";
     return;
   }
 
   pick = color;
-  document.getElementById("msg").innerText = "Selected: " + color;
+  msg.innerText = "Selected: " + color;
 }
 
-/* -------------------- TIMER -------------------- */
-setInterval(() => {
+/* ---------------- TIMER ---------------- */
+setInterval(()=>{
   time--;
-  document.getElementById("bar").style.width = (time/30*100) + "%";
-  if(time <= 0){ runResult(); time = 30; }
-}, 1000);
+  document.getElementById("bar").style.width = (time/30*100)+"%";
+  if(time<=0){ runResult(); time=30; }
+},1000);
 
-/* -------------------- RESULT -------------------- */
+/* ---------------- RESULT SYSTEM ---------------- */
 async function runResult(){
   const betAmt = parseInt(document.getElementById("betAmount").value);
 
-  // Safety check
-  if (coins < betAmt || !pick) { loadHistory(); return; }
+  if (!pick || coins < betAmt){
+    loadHistory();
+    return;
+  }
 
   const adminDoc = await db.collection("admin").doc("result").get();
   let winColor;
@@ -140,29 +142,27 @@ async function runResult(){
   if(adminDoc.exists && adminDoc.data().color){
     winColor = adminDoc.data().color;
   } else {
-    // Fallback random if admin not set
     winColor = ["Red","Green","Violet"][Math.floor(Math.random()*3)];
   }
 
-  // Determine win/lose
   let win = (pick === winColor);
   if(win){
-    coins += betAmt*2;
+    coins += betAmt * 2;
     winSound.play();
     msg.innerText = "🎉 WIN — " + winColor;
-  } else {
+  }else{
     coins -= betAmt;
     loseSound.play();
     msg.innerText = "❌ LOSE — " + winColor;
   }
 
-  coins = Math.max(coins,0);
+  coins = Math.max(coins, 0);
   document.getElementById("coins").innerText = coins;
 
   const u = auth.currentUser;
   if(u){
     db.collection("users").doc(u.uid).update({coins});
-    // Save transaction
+
     db.collection("transactions").add({
       uid: u.uid,
       bet: betAmt,
@@ -177,7 +177,7 @@ async function runResult(){
   loadHistory();
 }
 
-/* -------------------- LOAD HISTORY -------------------- */
+/* ---------------- HISTORY ---------------- */
 async function loadHistory(){
   const snap = await db.collection("rounds").orderBy("time","desc").limit(10).get();
   const historyEl = document.getElementById("history");
@@ -186,13 +186,13 @@ async function loadHistory(){
     const c = doc.data().result;
     const div = document.createElement("div");
     div.className = `bubble ${c.toLowerCase()}`;
-    div.innerText = c[0]; // First letter: R, G, V
+    div.innerText = c[0];
     historyEl.appendChild(div);
   });
 }
 loadHistory();
 
-/* -------------------- LOGOUT -------------------- */
+/* ---------------- LOGOUT ---------------- */
 function logout(){
   auth.signOut().then(()=>location.href="index.html");
 }
