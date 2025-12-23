@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Admin Recharge Requests</title>
+<style>
+body { font-family: Arial; padding:20px; background:#f0f0f0; }
+.box { background:#fff; padding:15px; border-radius:10px; margin-bottom:20px; }
+.btn { padding:5px 10px; border:none; border-radius:5px; margin-right:5px; cursor:pointer; }
+.approve { background:green; color:#fff; }
+.reject { background:red; color:#fff; }
+.view { background:blue; color:#fff; }
+</style>
+</head>
+<body>
+
+<h2>Recharge Requests</h2>
+
+<div id="list"></div>
+
+<h3>Set UPI ID for Users</h3>
+<input type="text" id="upi" placeholder="Enter UPI ID">
+<button onclick="saveUPI()">Save</button>
+
+<script>
+function loadRequests() {
+    let arr = JSON.parse(localStorage.getItem("recharge_requests") || "[]");
+    let html = "";
+
+    arr.forEach((r, i) => {
+        html += `
+        <div class="box">
+            <p><b>Amount:</b> ${r.amount}</p>
+            <p><b>Status:</b> ${r.status}</p>
+            <p><b>Time:</b> ${r.time}</p>
+            <button class="btn view" onclick="viewSS('${r.screenshot}')">Screenshot</button>
+            <button class="btn approve" onclick="updateStatus(${i}, 'Approved')">Approve</button>
+            <button class="btn reject" onclick="updateStatus(${i}, 'Rejected')">Reject</button>
+        </div>
+        `;
+    });
+
+    document.getElementById("list").innerHTML = html;
+}
+
+function updateStatus(i, status) {
+    let arr = JSON.parse(localStorage.getItem("recharge_requests") || "[]");
+    arr[i].status = status;
+    localStorage.setItem("recharge_requests", JSON.stringify(arr));
+    loadRequests();
+}
+
+function viewSS(img) {
+    let w = window.open();
+    w.document.write(`<img src="${img}" style="width:100%">`);
+}
+
+function saveUPI() {
+    localStorage.setItem("admin_upi_id", document.getElementById("upi").value);
+    alert("UPI ID Saved!");
+}
+
+loadRequests();
+</script>
+
+</body>
+</html>
