@@ -1,43 +1,44 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>AC Colour Prediction - Login</title>
+  <title>AC Colour Prediction - Mobile Login</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
+  
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
   <style>
-    body{
+    body {
       font-family: Arial;
       background:#111;
       color:#fff;
       text-align:center;
-      padding-top:40px;
+      padding-top:50px;
     }
-    input,button{
+    input, button {
       padding:12px;
-      margin:8px;
+      margin:10px;
       width:80%;
       font-size:16px;
-    }
-    button{
-      background:#ff9800;
+      border-radius:6px;
       border:none;
+    }
+    button {
+      background:#ff9800;
       color:#000;
       font-weight:bold;
       cursor:pointer;
     }
+    p {margin-top:10px;}
   </style>
 </head>
-
 <body>
 
 <h2>AC Colour Prediction</h2>
 
-<input id="email" type="email" placeholder="Email">
+<input id="mobile" type="text" placeholder="Enter Mobile Number" maxlength="10">
 <input id="password" type="password" placeholder="Password">
 
 <button onclick="register()">Register</button>
@@ -46,7 +47,7 @@
 <p id="msg"></p>
 
 <script>
-  // 🔥 FIREBASE CONFIG
+  // 🔥 Firebase Config
   const firebaseConfig = {
     apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
     authDomain: "ac-colour-prediction.firebaseapp.com",
@@ -57,70 +58,82 @@
   };
 
   firebase.initializeApp(firebaseConfig);
-
   const auth = firebase.auth();
-  const db   = firebase.firestore();
+  const db = firebase.firestore();
 
-  // 🔐 ADMIN EMAIL (YAHI ADMIN HOGA)
-  const ADMIN_EMAIL = "admin@gmail.com";
+  const ADMIN_MOBILE = "9999999999"; // Admin mobile number
 
-  // 🚫 AUTO REDIRECT TABHI JAB LOGIN HO
+  // 🔐 Auto redirect if logged in
   auth.onAuthStateChanged(user => {
     if(user){
-      if(user.email === ADMIN_EMAIL){
-        window.location.href = "admin.html";
-      }else{
-        window.location.href = "game.html";
-      }
+      db.collection("users").doc(user.uid).get().then(doc=>{
+        const mobile = doc.data().mobile;
+        if(mobile === ADMIN_MOBILE){
+          window.location.href = "admin.html";
+        } else {
+          window.location.href = "game.html";
+        }
+      });
     }
   });
 
-  // ✅ REGISTER (USER DATA FIRESTORE ME SAVE HOGA)
-  function register(){
-    auth.createUserWithEmailAndPassword(
-      email.value,
-      password.value
-    )
-    .then((cred)=>{
-      return db.collection("users").doc(cred.user.uid).set({
-        uid: cred.user.uid,
-        email: cred.user.email,
-        coins: 1000,
-        upi: "",
-        bankName: "",
-        accountNumber: "",
-        ifsc: "",
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-    })
-    .then(()=>{
-      if(email.value === ADMIN_EMAIL){
-        window.location.href = "admin.html";
-      }else{
-        window.location.href = "game.html";
-      }
-    })
-    .catch(e=>{
-      msg.innerText = e.message;
-    });
+  // ✅ Register
+  function register() {
+    const mobile = document.getElementById("mobile").value.trim();
+    const password = document.getElementById("password").value;
+
+    if(mobile.length !== 10 || isNaN(mobile)){
+      msg.innerText = "Enter valid 10-digit mobile number";
+      return;
+    }
+
+    // Create fake email for Firebase backend
+    const email = mobile + "@dummy.com";
+
+    auth.createUserWithEmailAndPassword(email, password)
+      .then(cred => {
+        return db.collection("users").doc(cred.user.uid).set({
+          uid: cred.user.uid,
+          mobile: mobile,
+          email: email,
+          coins: 1000,
+          bank: "",
+          account: "",
+          ifsc: "",
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      })
+      .then(()=>{
+        if(mobile === ADMIN_MOBILE){
+          window.location.href = "admin.html";
+        } else {
+          window.location.href = "game.html";
+        }
+      })
+      .catch(e => { msg.innerText = e.message });
   }
 
-  // ✅ LOGIN
-  function login(){
-    auth.signInWithEmailAndPassword(
-      email.value,
-      password.value
-    )
-    .then((cred)=>{
-      if(cred.user.email === ADMIN_EMAIL){
-        window.location.href = "admin.html";
-      }else{
-        window.location.href = "game.html";
-      }
-    })
-    .catch(e=>{
-      msg.innerText = e.message;
-    });
+  // ✅ Login
+  function login() {
+    const mobile = document.getElementById("mobile").value.trim();
+    const password = document.getElementById("password").value;
+
+    if(mobile.length !== 10 || isNaN(mobile)){
+      msg.innerText = "Enter valid 10-digit mobile number";
+      return;
+    }
+
+    const email = mobile + "@dummy.com";
+
+    auth.signInWithEmailAndPassword(email, password)
+      .then(cred => {
+        if(mobile === ADMIN_MOBILE){
+          window.location.href = "admin.html";
+        } else {
+          window.location.href = "game.html";
+        }
+      })
+      .catch(e => { msg.innerText = e.message });
   }
 </script>
 
