@@ -21,6 +21,7 @@
     .reject{background:#ff5252;color:#fff;}
     .autoOn{background:#00b0ff;color:#fff;}
     .autoOff{background:#ffab00;color:#000;}
+    select{padding:6px;margin:5px;border-radius:6px;font-weight:bold;}
   </style>
 </head>
 <body>
@@ -32,6 +33,13 @@
 <button class="autoOn" onclick="enableAuto()">ENABLE AUTO RESULT</button>
 <button class="autoOff" onclick="disableAuto()">DISABLE AUTO RESULT</button>
 <p id="autoStatus">Loading...</p>
+
+<h3>🎯 Auto Logic Selection</h3>
+<select id="autoLogicSelect" onchange="setAutoLogic()">
+  <option value="1">Logic 1: 60% Win / 40% Lose</option>
+  <option value="2">Logic 2: 40% Win / 60% Lose</option>
+</select>
+<p id="autoLogicStatus"></p>
 
 <h3>🎯 Manual Result Set</h3>
 <button class="red" onclick="setResult('Red')">RED</button>
@@ -74,6 +82,7 @@ auth.onAuthStateChanged(user=>{
     location.href = "index.html";
   } else {
     loadAutoStatus();
+    loadAutoLogic();
     loadUsers();
     loadWithdrawals();
   }
@@ -95,9 +104,30 @@ async function disableAuto(){
 async function loadAutoStatus(){
   const doc = await db.collection("admin").doc("auto").get();
   if(doc.exists && doc.data().enabled){
-    autoStatus.innerText = "AUTO RESULT: ENABLED (Win 60% / Lose 40%)";
+    autoStatus.innerText = "AUTO RESULT: ENABLED";
   } else {
     autoStatus.innerText = "AUTO RESULT: DISABLED";
+  }
+}
+
+/* --------------------- AUTO LOGIC --------------------- */
+async function setAutoLogic(){
+  const logic = autoLogicSelect.value;
+  await db.collection("admin").doc("auto").set({ 
+    logic: parseInt(logic),
+    enabled:true,
+    updated:new Date()
+  }, {merge:true});
+  loadAutoLogic();
+}
+
+async function loadAutoLogic(){
+  const doc = await db.collection("admin").doc("auto").get();
+  if(doc.exists && doc.data().logic){
+    autoLogicSelect.value = doc.data().logic;
+    autoLogicStatus.innerText = doc.data().logic==1 ? "Logic 1: 60% Win / 40% Lose" : "Logic 2: 40% Win / 60% Lose";
+  } else {
+    autoLogicStatus.innerText = "Logic 1: 60% Win / 40% Lose";
   }
 }
 
@@ -114,16 +144,18 @@ async function setResult(color){
 /* --------------------- AUTO RESULT LOGIC --------------------- */
 async function getAutoResult(pick){
   const autoDoc = await db.collection("admin").doc("auto").get();
+  let logic = 1;
   if(autoDoc.exists && autoDoc.data().enabled){
-    const random = Math.random(); // 0 to 1
-    if(random < 0.6){
-      return pick; // 60% win
+    logic = autoDoc.data().logic || 1;
+    const random = Math.random();
+    if(logic==1){
+      if(random < 0.6) return pick; // 60% Win
+      else { const other = ["Red","Green","Violet"].filter(c=>c!==pick); return other[Math.floor(Math.random()*2)]; }
     } else {
-      const otherColors = ["Red","Green","Violet"].filter(c=>c!==pick);
-      return otherColors[Math.floor(Math.random()*2)]; // 40% lose
+      if(random < 0.4) return pick; // 40% Win
+      else { const other = ["Red","Green","Violet"].filter(c=>c!==pick); return other[Math.floor(Math.random()*2)]; }
     }
   } else {
-    // manual result
     const resDoc = await db.collection("admin").doc("result").get();
     return resDoc.exists && resDoc.data().color ? resDoc.data().color : ["Red","Green","Violet"][Math.floor(Math.random()*3)];
   }
@@ -223,4 +255,4 @@ function logout(){
 </script>
 
 </body>
-</html>
+  </html>
