@@ -1,162 +1,118 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Admin Panel - AC Colour Prediction</title>
+  <title>Admin Panel - Withdrawals</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
   <style>
-    body{background:#111;color:#fff;font-family:Arial;padding:10px;}
-    h2,h3{text-align:center;}
-    button{padding:8px;margin:5px;font-weight:bold;border-radius:6px;border:none;cursor:pointer;}
-    table{width:100%;border-collapse:collapse;margin-top:10px;}
-    th,td{border:1px solid #555;padding:6px;text-align:center;}
-    .red{background:red;color:#fff;}
-    .green{background:green;color:#fff;}
-    .violet{background:violet;color:#fff;}
-    .approve{background:#00e676;color:#000;}
+    body{font-family:Arial;background:#111;color:#fff;text-align:center;padding:15px;}
+    table{width:100%;border-collapse:collapse;margin-top:15px;}
+    th,td{border:1px solid #555;padding:8px;text-align:center;}
+    th{background:#222;}
+    button{padding:6px 12px;margin:3px;border:none;border-radius:6px;cursor:pointer;font-weight:bold;}
+    .approve{background:#00ff00;color:#000;}
+    .reject{background:#ff5252;color:#fff;}
   </style>
 </head>
 <body>
 
-<h2>ADMIN PANEL</h2>
-
-<h3>🎯 Set Game Result</h3>
-<button class="red" onclick="setResult('Red')">RED</button>
-<button class="green" onclick="setResult('Green')">GREEN</button>
-<button class="violet" onclick="setResult('Violet')">VIOLET</button>
-
-<h3>👥 Users</h3>
-<table id="usersTable">
-<tr>
-<th>Email</th>
-<th>Coins</th>
-<th>UPI</th>
-<th>Bank</th>
-<th>Account</th>
-<th>IFSC</th>
-<th>Add Coins</th>
-</tr>
-</table>
-
-<h3>💸 Withdrawal Requests</h3>
+<h2>Pending Withdrawals</h2>
 <table id="withdrawTable">
 <tr>
-<th>User</th>
-<th>Coins</th>
-<th>UPI</th>
-<th>Status</th>
-<th>Action</th>
+  <th>User</th>
+  <th>Coins</th>
+  <th>UPI/Bank</th>
+  <th>Status</th>
+  <th>Action</th>
 </tr>
 </table>
-
-<button onclick="logout()">Logout</button>
 
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
   authDomain: "ac-colour-prediction.firebaseapp.com",
-  projectId: "ac-colour-prediction",
-  storageBucket: "ac-colour-prediction.appspot.com",
-  messagingSenderId: "471938348888",
-  appId: "1:471938348888:web:ac3fc3eb1939eb7cbe172d"
+  projectId: "ac-colour-prediction"
 };
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-const ADMIN_EMAIL = "admin@gmail.com";
-
-// ✅ AUTH CHECK
-auth.onAuthStateChanged(user=>{
-  if(!user || user.email !== ADMIN_EMAIL){
-    alert("Not Authorized");
-    location.href="index.html";
-  } else {
-    loadUsers();
-    loadWithdrawals();
-  }
+// Check Admin Login (optional: simple email check)
+auth.onAuthStateChanged(async u=>{
+  if(!u) location.href="index.html";
+  // load withdrawals
+  loadWithdrawals();
 });
 
-// -------------------- SET RESULT --------------------
-function setResult(color){
-  db.collection("admin").doc("result").set({color});
-  alert("Result set: " + color);
+async function loadWithdrawals(){
+  const snap = await db.collection("withdrawals").where("status","==","Pending").orderBy("requestedAt","desc").get();
+  const table = document.getElementById("withdrawTable");
+  snap.forEach(doc=>{
+    const d = doc.data();
+    const row = table.insertRow(-1);
+    row.insertCell(0).innerText = d.email;
+    row.insertCell(1).innerText = d.coins;
+    row.insertCell(2).innerText = d.upi || d.bank || "";
+    row.insertCell(3).innerText = d.status;
+
+    const actionCell = row.insertCell(4);
+    const approveBtn = document.createElement("button");
+    approveBtn.innerText = "Approve";
+    approveBtn.className="approve";
+    approveBtn.onclick = ()=>handleWithdrawal(doc.id,true,d);
+    const rejectBtn = document.createElement("button");
+    rejectBtn.innerText = "Reject";
+    rejectBtn.className="reject";
+    rejectBtn.onclick = ()=>handleWithdrawal(doc.id,false,d);
+
+    actionCell.appendChild(approveBtn);
+    actionCell.appendChild(rejectBtn);
+  });
 }
 
-// -------------------- LOAD USERS --------------------
-function loadUsers(){
-  db.collection("users").onSnapshot(snap=>{
-    let html = `<tr>
-      <th>Email</th><th>Coins</th><th>UPI</th><th>Bank</th><th>Account</th><th>IFSC</th><th>Add Coins</th>
-    </tr>`;
-    snap.forEach(doc=>{
-      let d = doc.data();
-      html += `<tr>
-        <td>${d.email||""}</td>
-        <td>${d.coins||0}</td>
-        <td>${d.upi||"-"}</td>
-        <td>${d.bank||"-"}</td>
-        <td>${d.account||"-"}</td>
-        <td>${d.ifsc||"-"}</td>
-        <td><button onclick="addCoins('${doc.id}',100)">+100</button>
-        <button onclick="addCoins('${doc.id}',500)">+500</button></td>
-      </tr>`;
+async function handleWithdrawal(id, approve, data){
+  const uRef = db.collection("users").doc(data.uid);
+  const tRef = db.collection("transactions");
+
+  if(approve){
+    // Approve: coins already deducted in wallet
+    await db.collection("withdrawals").doc(id).update({status:"Approved"});
+    // Update transaction
+    await tRef.add({
+      uid: data.uid,
+      type: "Withdrawal",
+      coins: data.coins,
+      status: "Approved",
+      time: new Date()
     });
-    usersTable.innerHTML = html;
-  });
-}
-
-// -------------------- ADD COINS --------------------
-function addCoins(uid,amount){
-  db.collection("users").doc(uid).update({
-    coins: firebase.firestore.FieldValue.increment(amount)
-  });
-}
-
-// -------------------- LOAD WITHDRAWALS --------------------
-function loadWithdrawals(){
-  db.collection("withdrawals").onSnapshot(snap=>{
-    let html = `<tr><th>User</th><th>Coins</th><th>UPI</th><th>Status</th><th>Action</th></tr>`;
-    snap.forEach(doc=>{
-      let d = doc.data();
-      html += `<tr>
-        <td>${d.email}</td>
-        <td>${d.coins}</td>
-        <td>${d.upi||"-"}</td>
-        <td>${d.status}</td>
-        <td>${d.status==="Pending"?`<button class="approve" onclick="approve('${doc.id}',${d.coins},'${d.uid}')">Approve</button>`:""}</td>
-      </tr>`;
+    alert("✅ Withdrawal Approved");
+  } else {
+    // Reject: coins back to user
+    await db.collection("withdrawals").doc(id).update({status:"Rejected"});
+    await uRef.update({coins: firebase.firestore.FieldValue.increment(data.coins)});
+    await tRef.add({
+      uid: data.uid,
+      type: "Withdrawal",
+      coins: data.coins,
+      status: "Rejected",
+      time: new Date()
     });
-    withdrawTable.innerHTML = html;
-  });
-}
+    alert("❌ Withdrawal Rejected & Coins Refunded");
+  }
 
-// -------------------- APPROVE WITHDRAWAL --------------------
-function approve(id,coins,uid){
-  // Deduct coins from user
-  const userRef = db.collection("users").doc(uid);
-  userRef.get().then(doc=>{
-    if(doc.exists){
-      const currentCoins = doc.data().coins || 0;
-      if(currentCoins >= coins){
-        userRef.update({coins: currentCoins - coins});
-        db.collection("withdrawals").doc(id).update({status:"Approved"});
-        alert("Withdrawal approved and coins deducted");
-      } else {
-        alert("User has insufficient coins");
-      }
-    }
-  });
-}
-
-// -------------------- LOGOUT --------------------
-function logout(){
-  auth.signOut();
-  location.href="index.html";
+  // Reload table
+  document.getElementById("withdrawTable").innerHTML = `
+  <tr>
+    <th>User</th>
+    <th>Coins</th>
+    <th>UPI/Bank</th>
+    <th>Status</th>
+    <th>Action</th>
+  </tr>`;
+  loadWithdrawals();
 }
 </script>
 
