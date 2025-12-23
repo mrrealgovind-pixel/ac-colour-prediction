@@ -1,122 +1,146 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>User Login</title>
+  <title>AC Colour Prediction - Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <!-- Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js"></script>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
-    <style>
-        body {
-            font-family: Arial;
-            background: #f7f7f7;
-            padding: 20px;
-        }
-        .box {
-            max-width: 350px;
-            background: white;
-            padding: 25px;
-            border-radius: 10px;
-            margin: auto;
-            margin-top: 60px;
-            box-shadow: 0 0 10px #ddd;
-        }
-        input {
-            width: 100%;
-            padding: 12px;
-            margin: 8px 0;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-        }
-        button {
-            width: 100%;
-            padding: 12px;
-            margin-top: 10px;
-            background: black;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-        p { text-align: center; }
-        a { color: blue; cursor: pointer; }
-    </style>
+  <style>
+    body{
+      font-family: Arial;
+      background:#111;
+      color:#fff;
+      text-align:center;
+      padding-top:40px;
+    }
+    input,button{
+      padding:12px;
+      margin:8px;
+      width:80%;
+      font-size:16px;
+    }
+    button{
+      background:#ff9800;
+      border:none;
+      color:#000;
+      font-weight:bold;
+      cursor:pointer;
+    }
+    .box-container{
+      width:95%;
+      margin:auto;
+      max-width:380px;
+      background:#222;
+      padding:15px;
+      border-radius:10px;
+    }
+  </style>
 </head>
 
 <body>
 
-<div class="box">
-    <h2>User Login</h2>
+<h2>AC Colour Prediction</h2>
 
-    <input id="mobile" type="text" placeholder="Enter Mobile Number" />
-    <input id="password" type="password" placeholder="Enter Password" />
+<div class="box-container">
+  <h3>User Login (Mobile)</h3>
 
-    <button onclick="userLogin()">Login</button>
+  <input id="mobile" type="text" placeholder="Mobile Number">
+  <input id="passwordMobile" type="password" placeholder="Password">
 
-    <p id="msg" style="color:red;"></p>
-
-    <p>New User? <a onclick="register()">Register</a></p>
+  <button onclick="userLogin()">User Login</button>
 </div>
 
+<br>
+
+<div class="box-container">
+  <h3>Admin Login (Email)</h3>
+
+  <input id="email" type="email" placeholder="Admin Email">
+  <input id="passwordEmail" type="password" placeholder="Password">
+
+  <button onclick="adminLogin()">Admin Login</button>
+</div>
+
+<p id="msg"></p>
+
 <script>
-    // 🔥 Replace your Firebase config here
-    const firebaseConfig = {
-        apiKey: "YOUR_KEY",
-        authDomain: "YOUR_DOMAIN",
-        projectId: "YOUR_PROJECT",
-    };
+  // 🔥 FIREBASE CONFIG
+  const firebaseConfig = {
+    apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
+    authDomain: "ac-colour-prediction.firebaseapp.com",
+    projectId: "ac-colour-prediction",
+    storageBucket: "ac-colour-prediction.appspot.com",
+    messagingSenderId: "471938348888",
+    appId: "1:471938348888:web:ac3fc3eb1939eb7cbe172d"
+  };
 
-    const app = firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
+  firebase.initializeApp(firebaseConfig);
 
-    // Convert mobile to fake email
-    function mobileToEmail(m) {
-        return m + "@user.com";
+  const auth = firebase.auth();
+  const db   = firebase.firestore();
+
+  // ADMIN EMAIL FIXED
+  const ADMIN_EMAIL = "admin@gmail.com";
+
+  // AUTO-REDIRECT IF LOGGED IN
+  auth.onAuthStateChanged(async user => {
+    if(!user) return;
+
+    const doc = await db.collection("users").doc(user.uid).get();
+    const data = doc.data();
+
+    if(user.email === ADMIN_EMAIL){
+      location.assign("admin.html");
+    } 
+    else if(data && data.mobile){
+      location.assign("game.html");
+    }
+  });
+
+  // ⭐ USER LOGIN (MOBILE + PASSWORD)
+  async function userLogin(){
+    const mobile = document.getElementById("mobile").value;
+    const pass   = document.getElementById("passwordMobile").value;
+
+    if(mobile.length !== 10){
+      msg.innerText = "Enter valid 10-digit mobile number";
+      return;
     }
 
-    // User Login
-    function userLogin() {
-        const mobile = document.getElementById("mobile").value.trim();
-        const pass = document.getElementById("password").value.trim();
+    const emailFormat = mobile + "@mobile.com"; // Fake email for Firebase Auth
 
-        if (mobile === "" || pass === "") {
-            document.getElementById("msg").innerText = "Mobile & Password required!";
-            return;
-        }
+    try {
+      const userCred = await auth.signInWithEmailAndPassword(emailFormat, pass);
+      location.assign("game.html");
+    }
+    catch(err){
+      msg.innerText = err.message;
+    }
+  }
 
-        const email = mobileToEmail(mobile);
+  // ⭐ ADMIN LOGIN (EMAIL + PASSWORD)
+  function adminLogin(){
+    const email = document.getElementById("email").value;
+    const pass  = document.getElementById("passwordEmail").value;
 
-        auth.signInWithEmailAndPassword(email, pass)
-            .then(() => {
-                window.location.href = "game.html";
-            })
-            .catch(err => {
-                document.getElementById("msg").innerText = err.message;
-            });
+    if(email !== ADMIN_EMAIL){
+      msg.innerText = "Only admin email allowed!";
+      return;
     }
 
-    // User Register
-    function register() {
-        const mobile = prompt("Enter Mobile Number:");
-        if (!mobile) return;
-
-        const pass = prompt("Set Password (min 6 chars):");
-        if (!pass) return;
-
-        const email = mobileToEmail(mobile);
-
-        auth.createUserWithEmailAndPassword(email, pass)
-            .then(() => {
-                alert("Account Created! Now login.");
-            })
-            .catch(err => {
-                alert(err.message);
-            });
-    }
+    auth.signInWithEmailAndPassword(email, pass)
+    .then(()=>{
+      location.assign("admin.html");
+    })
+    .catch(e=>{
+      msg.innerText = e.message;
+    });
+  }
 </script>
 
 </body>
-      </html>
+</html>
