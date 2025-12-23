@@ -35,7 +35,7 @@
 <div class="top-buttons">
   <button onclick="location.href='profile.html'">Profile / Bank Details</button>
   <button onclick="location.href='wallet.html'">💰 Wallet</button>
-  <button onclick="location.href='wallet-history.html'">📜 Transaction History</button>
+  <button onclick="location.href='history.html'">📜 Transaction History</button>
 </div>
 
 <div class="header">AC Colour Prediction</div>
@@ -64,7 +64,6 @@
 <audio id="loseSound" src="lose.mp3"></audio>
 
 <script>
-/* ------------------ FIREBASE ------------------ */
 const firebaseConfig = {
   apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
   authDomain: "ac-colour-prediction.firebaseapp.com",
@@ -78,21 +77,20 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-/* ------------------ VARIABLES ------------------ */
 let coins = 0;
 let pick = "";
 let time = 30;
 
-/* ------------------ AUTO LOGIN ------------------ */
+/* -------------------- AUTO LOGIN + CREATE USER -------------------- */
 auth.onAuthStateChanged(async (u) => {
   if (!u) { location.href="index.html"; return; }
 
   const userRef = db.collection("users").doc(u.uid);
-  const snap = await userRef.get();
+  const docSnap = await userRef.get();
 
-  if (!snap.exists) {
+  if (!docSnap.exists) {
     await userRef.set({
-      email: u.email,
+      mobile: u.phoneNumber || "",
       coins: 1000,
       createdAt: new Date(),
       upi: "",
@@ -103,91 +101,86 @@ auth.onAuthStateChanged(async (u) => {
   }
 
   const data = (await userRef.get()).data();
-  coins = data.coins;
+  coins = data.coins || 0;
   document.getElementById("coins").innerText = coins;
 });
 
-/* ------------------ SELECT BET ------------------ */
+/* -------------------- BET -------------------- */
 function bet(color) {
   pick = color;
   msg.innerText = "Selected: " + color;
 }
 
-/* ------------------ TIMER ------------------ */
+/* -------------------- TIMER -------------------- */
 setInterval(() => {
   time--;
   document.getElementById("bar").style.width = (time/30*100) + "%";
-
-  if(time <= 0){
-    result();
-    time = 30;
-  }
+  if(time <= 0){ result(); time = 30; }
 }, 1000);
 
-/* ------------------ RESULT SYSTEM ------------------ */
+/* -------------------- RESULT -------------------- */
 async function result(){
   const adminDoc = await db.collection("admin").doc("result").get();
-  const winColor = adminDoc.exists
-    ? adminDoc.data().color
-    : ["Red","Green","Violet"][Math.floor(Math.random()*3)];
+  const winColor = adminDoc.exists ? adminDoc.data().color : ["Red","Green","Violet"][Math.floor(Math.random()*3)];
 
-  const amount = parseInt(betAmount.value);
+  const betAmt = parseInt(betAmount.value);
 
   if(pick === winColor){
-    coins += amount * 2;
+    coins += betAmt*2;
     winSound.play();
     msg.innerText = "🎉 WIN — " + winColor;
+    saveTransaction("Win", betAmt*2);
   }else{
-    coins -= amount;
+    coins -= betAmt;
     loseSound.play();
     msg.innerText = "❌ LOSE — " + winColor;
+    saveTransaction("Lose", betAmt);
   }
 
-  coins = Math.max(coins, 0);
+  coins = Math.max(coins,0);
   document.getElementById("coins").innerText = coins;
 
   const u = auth.currentUser;
-  if(u){
-    db.collection("users").doc(u.uid).update({coins});
+  if(u) db.collection("users").doc(u.uid).update({coins});
 
-    /* -------- SAVE TRANSACTION HISTORY -------- */
-    db.collection("users").doc(u.uid).collection("history").add({
-      betColor: pick,
-      winColor: winColor,
-      betAmount: amount,
-      win: pick === winColor,
-      finalCoins: coins,
-      time: new Date()
-    });
-  }
-
-  db.collection("rounds").add({result: winColor, time: new Date()});
-
-  pick = "";
+  db.collection("rounds").add({result:winColor,time:new Date()});
   loadHistory();
+  pick = "";
 }
 
-/* ------------------ UI HISTORY BUBBLES ------------------ */
+/* -------------------- SAVE TRANSACTION -------------------- */
+function saveTransaction(type, amount){
+  const u = auth.currentUser;
+  if(!u) return;
+
+  db.collection("transactions").add({
+    uid: u.uid,
+    type,
+    amount,
+    time: new Date()
+  });
+}
+
+/* -------------------- LOAD HISTORY -------------------- */
 async function loadHistory(){
   const snap = await db.collection("rounds").orderBy("time","desc").limit(10).get();
   const historyEl = document.getElementById("history");
   historyEl.innerHTML = "";
-
-  snap.forEach(d=>{
-    const c = d.data().result;
+  snap.forEach(doc=>{
+    const c = doc.data().result;
     const div = document.createElement("div");
     div.className = `bubble ${c.toLowerCase()}`;
-    div.innerText = c[0];
+    div.innerText = c[0]; 
     historyEl.appendChild(div);
   });
 }
 loadHistory();
 
-/* ------------------ LOGOUT ------------------ */
+/* -------------------- LOGOUT -------------------- */
 function logout(){
   auth.signOut().then(()=>location.href="index.html");
 }
 </script>
 
 </body>
-    </html>
+</html>
