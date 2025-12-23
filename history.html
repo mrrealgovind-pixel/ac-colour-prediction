@@ -14,6 +14,7 @@
     th{background:#222;}
     .win{color:#00ff00;font-weight:bold;}
     .lose{color:#ff5252;font-weight:bold;}
+    .withdraw{color:#ff9800;font-weight:bold;}
     button{padding:10px;margin-top:10px;background:#ff9800;border:none;color:#000;font-weight:bold;border-radius:6px;cursor:pointer;}
   </style>
 </head>
@@ -23,9 +24,10 @@
 <table id="transTable">
 <tr>
   <th>Time</th>
-  <th>Bet</th>
-  <th>Picked</th>
-  <th>Result</th>
+  <th>Type</th>
+  <th>Coins</th>
+  <th>Picked / UPI</th>
+  <th>Result / Status</th>
   <th>Win/Lose</th>
 </tr>
 </table>
@@ -51,18 +53,36 @@ auth.onAuthStateChanged(async (u)=>{
 });
 
 async function loadTransactions(uid){
-  const snap = await db.collection("transactions").where("uid","==",uid).orderBy("time","desc").limit(50).get();
   const table = document.getElementById("transTable");
-  snap.forEach(doc=>{
+
+  // 1️⃣ Game Rounds
+  const roundsSnap = await db.collection("rounds").where("uid","==",uid).orderBy("time","desc").limit(50).get();
+  roundsSnap.forEach(doc=>{
     const d = doc.data();
     const row = table.insertRow(-1);
-    const t = new Date(d.time.seconds*1000).toLocaleString();
+    const t = d.time ? new Date(d.time.seconds*1000).toLocaleString() : "";
     row.insertCell(0).innerText = t;
-    row.insertCell(1).innerText = d.bet;
-    row.insertCell(2).innerText = d.color;
-    row.insertCell(3).innerText = d.result;
-    row.insertCell(4).innerText = d.win ? "WIN" : "LOSE";
-    row.cells[4].className = d.win ? "win" : "lose";
+    row.insertCell(1).innerText = "Game";
+    row.insertCell(2).innerText = d.bet || "-";
+    row.insertCell(3).innerText = d.pick || "-";
+    row.insertCell(4).innerText = d.result || "-";
+    row.insertCell(5).innerText = d.win ? "WIN" : "LOSE";
+    row.cells[5].className = d.win ? "win" : "lose";
+  });
+
+  // 2️⃣ Withdrawals
+  const withdrawSnap = await db.collection("withdrawals").where("uid","==",uid).orderBy("requestedAt","desc").limit(50).get();
+  withdrawSnap.forEach(doc=>{
+    const d = doc.data();
+    const row = table.insertRow(-1);
+    const t = d.requestedAt ? new Date(d.requestedAt.seconds*1000).toLocaleString() : "";
+    row.insertCell(0).innerText = t;
+    row.insertCell(1).innerText = "Withdrawal";
+    row.insertCell(2).innerText = d.coins || "-";
+    row.insertCell(3).innerText = d.upi || "-";
+    row.insertCell(4).innerText = d.status || "-";
+    row.insertCell(5).innerText = "-";
+    row.cells[4].className = "withdraw";
   });
 }
 
