@@ -3,92 +3,210 @@
 <head>
   <title>Wallet - AC Colour Prediction</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
   <style>
-    body{font-family:Arial;background:#111;color:#fff;text-align:center;padding:15px;}
-    input,button{padding:10px;margin:5px;border-radius:6px;border:none;font-size:16px;}
-    table{width:100%;border-collapse:collapse;margin-top:15px;}
-    th,td{border:1px solid #555;padding:8px;text-align:center;}
-    th{background:#222;}
-    .approve{background:#00e676;color:#000;}
+    body { background:#111;color:#fff;font-family:Arial;padding:10px; }
+    h2 { text-align:center; }
+
+    .box { background:#222;padding:12px;margin:10px 0;border-radius:10px; }
+    input,select {
+      width:100%;padding:10px;border-radius:6px;border:none;margin:6px 0;background:#333;color:#fff;
+    }
+    button {
+      width:100%;padding:10px;background:#0af;color:#fff;font-weight:bold;border:none;border-radius:6px;margin-top:10px;
+    }
+    .historyCard {
+      background:#222;padding:10px;margin:8px 0;border-radius:8px;
+      border-left:5px solid #0af;
+    }
+    .green { border-left-color:#00e676; }
+    .red { border-left-color:#ff5252; }
+    .orange { border-left-color:#ffab00; }
   </style>
 </head>
 <body>
 
 <h2>Wallet</h2>
-<p>Coins: <span id="coins">0</span></p>
 
-<h3>Request Withdrawal</h3>
-<input type="number" id="withdrawAmount" placeholder="Coins to withdraw" min="10">
-<button onclick="requestWithdrawal()">Request</button>
+<h3>💰 Your Balance: <span id="walletCoins">0</span> Coins</h3>
 
-<h3>Pending Withdrawals</h3>
-<table id="withdrawTable">
-<tr><th>Time</th><th>Coins</th><th>Status</th></tr>
-</table>
+<!-- ADD COINS -->
+<div class="box">
+  <h3>Add Coins</h3>
+  <input type="number" id="addAmount" placeholder="Enter amount (e.g. 100)">
+  <input type="text" id="upiId" placeholder="Your UPI ID (optional)">
+  <button onclick="addCoinsRequest()">Submit Add Request</button>
+</div>
 
-<button onclick="back()">Back to Game</button>
+<!-- WITHDRAW COINS -->
+<div class="box">
+  <h3>Withdraw Coins</h3>
+  <input type="number" id="withdrawAmount" placeholder="Enter coins (min 100)">
+  
+  <h4>Withdrawal Method</h4>
+  <select id="withdrawMethod">
+    <option value="upi">UPI</option>
+    <option value="bank">Bank Transfer</option>
+  </select>
+
+  <div id="upiBox">
+    <input type="text" id="withdrawUpi" placeholder="Your UPI ID">
+  </div>
+
+  <div id="bankBox" style="display:none;">
+    <input type="text" id="bankName" placeholder="Bank Name">
+    <input type="text" id="accNumber" placeholder="Account Number">
+    <input type="text" id="ifsc" placeholder="IFSC Code">
+  </div>
+
+  <button onclick="withdrawRequest()">Request Withdrawal</button>
+</div>
+
+<!-- HISTORY -->
+<h3>📜 Withdrawal History</h3>
+<div id="withdrawHistory">Loading...</div>
 
 <script>
+/* ---------- FIREBASE ---------- */
 const firebaseConfig = {
   apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
   authDomain: "ac-colour-prediction.firebaseapp.com",
   projectId: "ac-colour-prediction",
 };
 firebase.initializeApp(firebaseConfig);
-
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-let coins = 0;
+let UID = null;
 
-auth.onAuthStateChanged(async (u)=>{
-  if(!u) location.href="index.html";
-  const userRef = db.collection("users").doc(u.uid);
-  const data = (await userRef.get()).data();
-  coins = data.coins || 0;
-  document.getElementById("coins").innerText = coins;
-  loadWithdrawals(u.uid);
+/* ---------- AUTH CHECK ---------- */
+auth.onAuthStateChanged(user=>{
+  if(!user){ location.href = "index.html"; return; }
+  UID = user.uid;
+  loadWalletCoins();
+  loadWithdrawHistory();
 });
 
-async function requestWithdrawal(){
-  const amt = parseInt(document.getElementById("withdrawAmount").value);
-  if(isNaN(amt) || amt < 10){ alert("Enter valid amount"); return; }
-  if(amt > coins){ alert("Not enough coins"); return; }
+/* ---------- SHOW / HIDE UPI / BANK BOX ---------- */
+document.getElementById("withdrawMethod").addEventListener("change", function(){
+  if(this.value === "upi"){
+    upiBox.style.display = "block";
+    bankBox.style.display = "none";
+  } else {
+    upiBox.style.display = "none";
+    bankBox.style.display = "block";
+  }
+});
 
-  const u = auth.currentUser;
-  await db.collection("withdrawals").add({
-    uid: u.uid,
-    email: u.email,
-    coins: amt,
+/* ---------- LIVE BALANCE ---------- */
+function loadWalletCoins(){
+  db.collection("users").doc(UID).onSnapshot(doc=>{
+    walletCoins.innerText = doc.data().coins || 0;
+  });
+}
+
+/* ---------- ADD COINS REQUEST ---------- */
+function addCoinsRequest(){
+  let amount = parseInt(addAmount.value);
+  let upi = upiId.value;
+
+  if(!amount || amount < 10){
+    alert("Minimum add amount ₹10");
+    return;
+  }
+
+  db.collection("add_requests").add({
+    uid: UID,
+    amount: amount,
+    upi: upi,
     status: "Pending",
-    requestedAt: new Date()
+    time: new Date()
   });
-  alert("Withdrawal requested");
-  loadWithdrawals(u.uid);
+
+  alert("Add request submitted ✔");
+  addAmount.value = "";
+  upiId.value = "";
 }
 
-async function loadWithdrawals(uid){
-  const snap = await db.collection("withdrawals")
-    .where("uid","==",uid)
-    .orderBy("requestedAt","desc").get();
-    
-  const table = document.getElementById("withdrawTable");
-  table.innerHTML = "<tr><th>Time</th><th>Coins</th><th>Status</th></tr>";
-  snap.forEach(doc=>{
-    const d = doc.data();
-    const row = table.insertRow(-1);
-    const t = new Date(d.requestedAt.seconds*1000).toLocaleString();
-    row.insertCell(0).innerText = t;
-    row.insertCell(1).innerText = d.coins;
-    row.insertCell(2).innerText = d.status;
+/* ---------- WITHDRAWAL REQUEST ---------- */
+function withdrawRequest(){
+  let coins = parseInt(withdrawAmount.value);
+  let method = withdrawMethod.value;
+
+  if(!coins || coins < 100){
+    alert("Minimum withdrawal 100 coins!");
+    return;
+  }
+
+  db.collection("users").doc(UID).get().then(doc=>{
+    if((doc.data().coins || 0) < coins){
+      alert("You don’t have enough coins");
+      return;
+    }
+
+    let data = {
+      uid: UID,
+      coins: coins,
+      method: method,
+      status: "Pending",
+      requestedAt: new Date()
+    };
+
+    if(method === "upi"){
+      data.upi = withdrawUpi.value;
+      if(!data.upi){ alert("Enter UPI ID"); return; }
+    } else {
+      data.bank = bankName.value;
+      data.account = accNumber.value;
+      data.ifsc = ifsc.value;
+      if(!data.bank || !data.account || !data.ifsc){
+        alert("Enter full bank details");
+        return;
+      }
+    }
+
+    db.collection("withdrawals").add(data);
+    alert("Withdrawal request submitted ✔");
+    withdrawAmount.value = "";
   });
 }
 
-function back(){ location.href="game.html"; }
+/* ---------- LOAD WITHDRAWAL HISTORY ---------- */
+function loadWithdrawHistory(){
+  db.collection("withdrawals")
+    .where("uid","==",UID)
+    .orderBy("requestedAt","desc")
+    .onSnapshot(snap=>{
+      let html = "";
+
+      if(snap.empty){
+        withdrawHistory.innerHTML = "<p>No withdrawal history.</p>";
+        return;
+      }
+
+      snap.forEach(doc=>{
+        const d = doc.data();
+
+        let color = "orange";
+        if(d.status === "Approved") color = "green";
+        if(d.status === "Rejected") color = "red";
+
+        html += `
+        <div class="historyCard ${color}">
+          <b>${d.status}</b><br>
+          Coins: <b>${d.coins}</b><br>
+          Method: ${d.method.toUpperCase()}<br>
+          <small>${d.requestedAt.toDate().toLocaleString()}</small>
+        </div>`;
+      });
+
+      withdrawHistory.innerHTML = html;
+    });
+}
 </script>
 
 </body>
