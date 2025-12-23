@@ -3,8 +3,6 @@
 <head>
   <title>AC Colour Prediction - Pro JILI UI</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
-  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -35,14 +33,13 @@
 <div class="top-buttons">
   <button onclick="location.href='profile.html'">Profile / Bank Details</button>
   <button onclick="location.href='wallet.html'">💰 Wallet</button>
-  <button onclick="location.href='history.html'">📜 Transactions</button>
+  <button onclick="location.href='history.html'">📜 Transaction History</button>
 </div>
 
 <div class="header">AC Colour Prediction</div>
 <div class="coins">Coins: <span id="coins">0</span></div>
 
 <div id="bar-container"><div id="bar"></div></div>
-
 <div class="history" id="history"></div>
 
 <select id="betAmount">
@@ -70,21 +67,19 @@ const firebaseConfig = {
   projectId: "ac-colour-prediction",
   storageBucket: "ac-colour-prediction.appspot.com",
   messagingSenderId: "471938348888",
-  appId: "1:471938348888:web:ac3fc3eb7cbe172d"
+  appId: "1:471938348888:web:ac3fc3eb1939eb7cbe172d"
 };
 firebase.initializeApp(firebaseConfig);
-
 const auth = firebase.auth();
 const db = firebase.firestore();
 
 let coins = 0;
 let pick = "";
 let time = 30;
+let betAmt = 0;
 
-/* -------------------- AUTO LOGIN + CREATE USER -------------------- */
 auth.onAuthStateChanged(async (u) => {
   if (!u) { location.href="index.html"; return; }
-
   const userRef = db.collection("users").doc(u.uid);
   const docSnap = await userRef.get();
 
@@ -99,92 +94,82 @@ auth.onAuthStateChanged(async (u) => {
       ifsc: ""
     });
   }
-
   const data = (await userRef.get()).data();
   coins = data.coins || 0;
   document.getElementById("coins").innerText = coins;
 });
 
-/* -------------------- BET -------------------- */
-function bet(color) {
+function bet(color){
   pick = color;
   msg.innerText = "Selected: " + color;
+  betAmt = parseInt(document.getElementById("betAmount").value);
 }
 
-/* -------------------- TIMER -------------------- */
 setInterval(() => {
   time--;
   document.getElementById("bar").style.width = (time/30*100) + "%";
-  if(time <= 0){ result(); time = 30; }
-}, 1000);
+  if(time <= 0){ playResult(); time=30; }
+},1000);
 
-/* -------------------- RESULT -------------------- */
-async function result() {
+async function playResult(){
+  if(!pick) return;
+
   const adminDoc = await db.collection("admin").doc("result").get();
-  const winColor = adminDoc.exists ? adminDoc.data().color : ["Red", "Green", "Violet"][Math.floor(Math.random() * 3)];
+  const winColor = adminDoc.exists ? adminDoc.data().color : ["Red","Green","Violet"][Math.floor(Math.random()*3)];
 
-  const betAmt = parseInt(betAmount.value);
-  const u = auth.currentUser;
-
-  if (!u) { console.log("User not logged in!"); return; }
-
-  if (!pick) pick = "None";
-
-  let win = false;
-  if (pick === winColor) {
-    coins += betAmt * 2;
+  let win = pick === winColor;
+  if(win){
+    coins += betAmt*2;
     winSound.play();
     msg.innerText = "🎉 WIN — " + winColor;
-    win = true;
   } else {
     coins -= betAmt;
     loseSound.play();
     msg.innerText = "❌ LOSE — " + winColor;
   }
-
-  coins = Math.max(coins, 0);
+  coins = Math.max(coins,0);
   document.getElementById("coins").innerText = coins;
 
-  // Update user coins
-  await db.collection("users").doc(u.uid).update({ coins });
-
-  // Save transaction
-  await db.collection("transactions").add({
-    uid: u.uid,
-    email: u.email,
-    colorPicked: pick,
-    resultColor: winColor,
-    bet: betAmt,
-    win: win,
-    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-  });
-
-  // Save round for bubble history
-  await db.collection("rounds").add({ result: winColor, time: new Date() });
-
+  const u = auth.currentUser;
+  if(u){
+    db.collection("users").doc(u.uid).update({coins});
+    db.collection("rounds").add({
+      uid: u.uid,
+      pick,
+      bet: betAmt,
+      result: winColor,
+      win,
+      time: new Date()
+    });
+    // Save to transactions
+    db.collection("transactions").add({
+      uid: u.uid,
+      type: "Game",
+      color: pick,
+      bet: betAmt,
+      result: winColor,
+      win,
+      time: new Date()
+    });
+  }
+  pick="";
   loadHistory();
-  pick = "";
 }
 
-/* -------------------- LOAD HISTORY -------------------- */
-async function loadHistory() {
+async function loadHistory(){
   const snap = await db.collection("rounds").orderBy("time","desc").limit(10).get();
   const historyEl = document.getElementById("history");
-  historyEl.innerHTML = "";
+  historyEl.innerHTML="";
   snap.forEach(doc=>{
     const c = doc.data().result;
     const div = document.createElement("div");
     div.className = `bubble ${c.toLowerCase()}`;
-    div.innerText = c[0]; // First letter: R, G, V
+    div.innerText = c[0]; 
     historyEl.appendChild(div);
   });
 }
-loadHistory();
 
-/* -------------------- LOGOUT -------------------- */
-function logout(){
-  auth.signOut().then(()=>location.href="index.html");
-}
+function logout(){ auth.signOut().then(()=>location.href="index.html"); }
 </script>
 
 </body>
