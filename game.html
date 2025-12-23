@@ -3,26 +3,63 @@
 <head>
   <title>AC Colour Prediction - Pro JILI UI</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
   <style>
     body{margin:0;font-family:Arial;background:#0f0f0f;color:#fff;text-align:center;}
+
     .top-buttons{margin:10px;}
-    .top-buttons button{padding:10px 15px;margin:5px;background:#222;color:#fff;border:none;border-radius:8px;cursor:pointer;}
+    .top-buttons button{
+      padding:10px 15px;margin:5px;background:#222;color:#fff;
+      border:none;border-radius:8px;cursor:pointer;
+    }
+
     .header{font-size:22px;padding:12px;background:#000;margin-bottom:10px;}
     .coins{font-size:18px;color:#00ff90;margin:8px;}
-    .history{margin:10px;display:flex;justify-content:center;flex-wrap:wrap;gap:6px;}
-    .bubble{padding:8px 12px;border-radius:50%;color:#fff;font-weight:bold;width:40px;height:40px;display:flex;align-items:center;justify-content:center;}
+
+    .history{
+      margin:10px;display:flex;justify-content:center;
+      flex-wrap:wrap;gap:6px;
+    }
+
+    .bubble{
+      padding:8px 12px;border-radius:50%;color:#fff;font-weight:bold;
+      width:40px;height:40px;display:flex;align-items:center;justify-content:center;
+    }
+
     .red{background:#e53935;}
     .green{background:#43a047;}
     .violet{background:#8e24aa;}
-    select,button{padding:12px;margin:6px;width:80%;font-size:16px;border:none;border-radius:6px;cursor:pointer;}
-    .bet-btn{font-weight:bold;font-size:18px;transition:0.3s;}
-    .bet-btn:hover{transform:scale(1.1);}
-    #bar-container{width:90%;height:12px;background:#333;margin:10px auto;border-radius:6px;overflow:hidden;}
+
+    select{
+      padding:14px;margin:10px;width:85%;
+      font-size:19px;font-weight:bold;border:none;border-radius:8px;
+      background:#222;color:#fff;
+    }
+
+    .bet-btn{
+      font-weight:bold;font-size:20px;
+      width:28%;padding:15px;border-radius:10px;
+      transition:0.25s;border:none;color:#fff;margin:4px;
+    }
+
+    .red{background:#e53935;}
+    .green{background:#43a047;}
+    .violet{background:#8e24aa;}
+
+    .bet-btn:hover{transform:scale(1.08);}
+
+    #bar-container{
+      width:90%;height:12px;background:#333;
+      margin:10px auto;border-radius:6px;overflow:hidden;
+    }
+
     #bar{height:100%;width:100%;background:#ff9800;transition:0.3s;}
+
     .msg{margin:12px;font-size:18px;}
     .logout{background:#fff;color:#000;width:40%;margin-top:12px;}
   </style>
@@ -43,7 +80,9 @@
 
 <div class="history" id="history"></div>
 
+<!-- UPDATED BET OPTIONS -->
 <select id="betAmount">
+  <option value="20">Bet 20</option>
   <option value="50">Bet 50</option>
   <option value="100">Bet 100</option>
   <option value="500">Bet 500</option>
@@ -79,100 +118,101 @@ let coins = 0;
 let pick = "";
 let time = 30;
 
-// -------------------- AUTO LOGIN --------------------
+/* -------------------- AUTO LOGIN + NEW USERS 30 COINS -------------------- */
 auth.onAuthStateChanged(async (u) => {
-  if(!u) { location.href="index.html"; return; }
+  if (!u) { location.href="index.html"; return; }
 
   const userRef = db.collection("users").doc(u.uid);
   const docSnap = await userRef.get();
 
-  if(!docSnap.exists){
-    // ✅ NEW USER GETS 30 COINS INSTEAD OF 1000
-    await userRef.set({email:u.email, coins:30, createdAt:new Date(), upi:"", bank:"", account:"", ifsc:""});
+  if (!docSnap.exists) {
+    await userRef.set({
+      email: u.email,
+      coins: 30,   // NEW USER = 30 COINS
+      createdAt: new Date()
+    });
   }
 
-  coins = (await userRef.get()).data().coins || 0;
+  const data = (await userRef.get()).data();
+  coins = data.coins || 0;
+
   document.getElementById("coins").innerText = coins;
 });
 
-// -------------------- BET --------------------
-function bet(color){
-  pick = color;
-  document.getElementById("msg").innerText = "Selected: " + color;
-}
-
-// -------------------- TIMER --------------------
-setInterval(()=>{ 
-  time--; 
-  document.getElementById("bar").style.width = (time/30*100) + "%"; 
-  if(time <= 0){ runResult(); time = 30; } 
-},1000);
-
-// -------------------- RESULT --------------------
-async function runResult(){
-  const adminDoc = await db.collection("admin").doc("result").get();
-  let winColor = adminDoc.exists && adminDoc.data().color ? adminDoc.data().color : null;
-
-  // Agar admin set nahi kiya to random color
-  if(!winColor){
-    const colors = ["Red","Green","Violet"];
-    winColor = colors[Math.floor(Math.random()*3)];
-  }
-
+/* -------------------- BET -------------------- */
+function bet(color) {
   const betAmt = parseInt(document.getElementById("betAmount").value);
 
-  if(pick === winColor){
-    coins += betAmt*2;
-    document.getElementById("winSound").play();
-    document.getElementById("msg").innerText = "🎉 WIN — " + winColor;
+  if (coins < betAmt) {
+    msg.innerText = "❌ Not enough coins";
+    return;
+  }
+
+  pick = color;
+  msg.innerText = "Selected: " + color;
+}
+
+/* -------------------- TIMER -------------------- */
+setInterval(() => {
+  time--;
+  bar.style.width = (time/30*100) + "%";
+  if(time <= 0){ getResult(); time = 30; }
+}, 1000);
+
+/* -------------------- RESULT -------------------- */
+async function getResult(){
+  const betAmt = parseInt(betAmount.value);
+  if (!pick || coins < betAmt) return;
+
+  let winColor;
+
+  // Admin-set result
+  const adminDoc = await db.collection("admin").doc("result").get();
+
+  if(adminDoc.exists && adminDoc.data().color){
+    winColor = adminDoc.data().color;
+  } else {
+    winColor = ["Red","Green","Violet"][Math.floor(Math.random()*3)];
+  }
+
+  const isWin = (pick === winColor);
+
+  if(isWin){
+    coins += betAmt * 2;
+    winSound.play();
+    msg.innerText = "🎉 WIN — " + winColor;
   } else {
     coins -= betAmt;
-    document.getElementById("loseSound").play();
-    document.getElementById("msg").innerText = "❌ LOSE — " + winColor;
+    loseSound.play();
+    msg.innerText = "❌ LOSE — " + winColor;
   }
 
   coins = Math.max(coins,0);
-  document.getElementById("coins").innerText = coins;
+  coinsEl.innerText = coins;
 
   const u = auth.currentUser;
+
   if(u){
     db.collection("users").doc(u.uid).update({coins});
+
     db.collection("transactions").add({
-      uid:u.uid,
+      uid: u.uid,
       bet: betAmt,
-      color: pick || "No Pick",
+      color: pick,
       result: winColor,
-      win: pick===winColor,
+      win: isWin,
       time: new Date()
     });
   }
 
-  // Round history
-  db.collection("rounds").add({result:winColor,time:new Date()});
-  loadHistory();
   pick = "";
 }
 
-// -------------------- LOAD HISTORY --------------------
-async function loadHistory(){
-  const snap = await db.collection("rounds").orderBy("time","desc").limit(10).get();
-  const historyEl = document.getElementById("history");
-  historyEl.innerHTML = "";
-  snap.forEach(doc=>{
-    const c = doc.data().result;
-    const div = document.createElement("div");
-    div.className = `bubble ${c.toLowerCase()}`;
-    div.innerText = c[0];
-    historyEl.appendChild(div);
-  });
-}
-loadHistory();
-
-// -------------------- LOGOUT --------------------
+/* -------------------- LOGOUT -------------------- */
 function logout(){
   auth.signOut().then(()=>location.href="index.html");
 }
 </script>
 
 </body>
-  </html>
+</html>
