@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Slot Machine - JILI Slide 3-Line</title>
+<title>Slot Machine - JILI 3-Line</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -9,39 +9,24 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
 <style>
-body {
-    margin: 0;
-    background: radial-gradient(circle,#000,#111,#000);
-    font-family: Arial;
-    color: white;
-    text-align: center;
-}
-h2 { margin-top: 20px; color: gold; text-shadow:0 0 10px gold; font-size:30px; }
-#coins,#bet { font-size:22px; margin-top:15px; font-weight:bold; color:#00ff9d; }
-.bet-btns button {
-    width:75px;padding:8px;margin:5px;border-radius:8px;border:1px solid gold;background:#222;color:gold;font-weight:bold;
-}
-.slot-box {
-    width:92%;margin:auto;background:linear-gradient(145deg,#1b1b1b,#0a0a0a);
-    padding:20px;border-radius:20px;border:3px solid gold;box-shadow:0 0 25px rgba(255,215,0,0.4);margin-top:20px;
-}
-.reels { display:flex; justify-content:space-around; flex-direction:column; gap:5px; }
-.row { display:flex; justify-content:space-around; overflow:hidden; height:90px; }
-.reel {
-    width:90px;height:90px;background:black;border:3px solid gold;border-radius:12px;
-    font-size:50px; display:flex; justify-content:center; align-items:center; transform: translateY(-100%); transition: transform 0.7s ease;
-}
-.win-glow { animation: glow 1s infinite alternate; }
-@keyframes glow { from{box-shadow:0 0 10px gold;} to{box-shadow:0 0 25px yellow;} }
-button.spin-btn {
-    width:180px;padding:15px;margin-top:25px;background:linear-gradient(135deg,#ffd700,#ffae00);
-    border:none;border-radius:15px;font-size:22px;font-weight:bold;color:black; box-shadow:0 0 20px gold;
-}
-#result { font-size:26px;margin-top:15px;font-weight:bold; }
+body {margin:0; background:radial-gradient(circle,#000,#111,#000); font-family:Arial; color:white; text-align:center;}
+h2 {margin-top:20px; color:gold; text-shadow:0 0 10px gold; font-size:30px;}
+#coins,#bet {font-size:22px;margin-top:15px;font-weight:bold;color:#00ff9d;}
+.bet-btns button {width:75px;padding:8px;margin:5px;border-radius:8px;border:1px solid gold;background:#222;color:gold;font-weight:bold;}
+.slot-box {width:92%;margin:auto;background:linear-gradient(145deg,#1b1b1b,#0a0a0a);padding:20px;border-radius:20px;border:3px solid gold;box-shadow:0 0 25px rgba(255,215,0,0.4);margin-top:20px;}
+.reels {display:flex; justify-content:space-around; flex-direction:column; gap:5px;}
+.row {display:flex; justify-content:space-around; overflow:hidden; height:90px;}
+.reel {width:90px;height:90px;background:black;border:3px solid gold;border-radius:12px; font-size:50px; display:flex; justify-content:center; align-items:center; transform: translateY(-100%); transition: transform 0.7s ease;}
+.win-glow {animation:glow 1s infinite alternate;}
+@keyframes glow {from{box-shadow:0 0 10px gold;} to{box-shadow:0 0 25px yellow;}}
+button.spin-btn {width:180px;padding:15px;margin-top:25px;background:linear-gradient(135deg,#ffd700,#ffae00);border:none;border-radius:15px;font-size:22px;font-weight:bold;color:black; box-shadow:0 0 20px gold;}
+#result {font-size:26px;margin-top:15px;font-weight:bold;}
+.payout-col {margin-top:15px;font-size:20px;}
+.payout-col div{margin:5px;}
 </style>
 </head>
-
 <body>
+
 <h2>🎰 JILI SLOT MACHINE</h2>
 <div id="coins">Coins: 0</div>
 <div id="bet">Bet: 10</div>
@@ -55,23 +40,29 @@ button.spin-btn {
 
 <div class="slot-box">
     <div class="reels">
-        <div class="row" id="row1">
+        <div class="row">
             <div id="r1_top" class="reel">🍒</div>
             <div id="r2_top" class="reel">🍋</div>
             <div id="r3_top" class="reel">⭐</div>
         </div>
-        <div class="row" id="row2">
+        <div class="row">
             <div id="r1_mid" class="reel">🍋</div>
             <div id="r2_mid" class="reel">⭐</div>
             <div id="r3_mid" class="reel">🔔</div>
         </div>
-        <div class="row" id="row3">
+        <div class="row">
             <div id="r1_bot" class="reel">🍒</div>
             <div id="r2_bot" class="reel">🍋</div>
             <div id="r3_bot" class="reel">⭐</div>
         </div>
     </div>
     <button class="spin-btn" onclick="spin()">SPIN</button>
+</div>
+
+<div class="payout-col">
+    <div>Top Line Win: <span id="payout_top">0</span></div>
+    <div>Mid Line Win: <span id="payout_mid">0</span></div>
+    <div>Bot Line Win: <span id="payout_bot">0</span></div>
 </div>
 
 <p id="result"></p>
@@ -81,7 +72,6 @@ button.spin-btn {
 <audio id="spinSound" src="spin.mp3"></audio>
 
 <script>
-/* FIREBASE CONFIG */
 const firebaseConfig = {
   apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
   authDomain: "ac-colour-prediction.firebaseapp.com",
@@ -92,99 +82,92 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-let coins = 0, bet = 10, uid = null;
-let winRate = 40, jackpotRate = 5;
+let coins=0, bet=10, uid=null;
+let winRate=40, jackpotRate=5;
 
-auth.onAuthStateChanged(async(user)=>{
+auth.onAuthStateChanged(async (user)=>{
     if(!user){ location.href="index.html"; return; }
-    uid = user.uid;
-    const u = await db.collection("users").doc(uid).get();
-    if(u.exists){ coins = u.data().coins||0; }
-    document.getElementById("coins").innerHTML = "Coins: " + coins;
-
-    const ctrl = await db.collection("adminControl").doc("control").get();
-    if(ctrl.exists){
-        winRate = ctrl.data().slotWin;
-        jackpotRate = ctrl.data().slotJackpot;
-    }
+    uid=user.uid;
+    const snap = await db.collection("users").doc(uid).get();
+    if(snap.exists){ coins = snap.data().coins||0; document.getElementById("coins").innerHTML="Coins:"+coins; }
+    const ctrl = await db.collection("slotControl").doc("settings").get();
+    if(ctrl.exists){ winRate=ctrl.data().winRate; jackpotRate=ctrl.data().jackpotRate; }
 });
 
-function setBet(x){
-    bet = x;
-    document.getElementById("bet").innerHTML = "Bet: " + bet;
-}
-
-function updateCoins(){
-    db.collection("users").doc(uid).update({coins});
-    document.getElementById("coins").innerHTML = "Coins: " + coins;
-}
+function setBet(amount){ bet=amount; document.getElementById("bet").innerHTML="Bet:"+bet; }
+function updateCoins(){ db.collection("users").doc(uid).update({coins}); document.getElementById("coins").innerHTML="Coins:"+coins; }
 
 async function spin(){
-    if(coins < bet){ alert("Not enough coins!"); return; }
+    if(coins<bet){ alert("Not enough coins!"); return; }
+    coins-=bet; updateCoins();
 
-    coins -= bet;
-    updateCoins();
+    const top=[document.getElementById("r1_top"),document.getElementById("r2_top"),document.getElementById("r3_top")];
+    const mid=[document.getElementById("r1_mid"),document.getElementById("r2_mid"),document.getElementById("r3_mid")];
+    const bot=[document.getElementById("r1_bot"),document.getElementById("r2_bot"),document.getElementById("r3_bot")];
 
-    spinSound.play();
+    const symbols=["🍒","🍋","⭐","🔔","🍉","7️⃣"];
+    const payoutEls = {
+        top: document.getElementById("payout_top"),
+        mid: document.getElementById("payout_mid"),
+        bot: document.getElementById("payout_bot")
+    };
 
-    const rows = [
-        [r1_top, r2_top, r3_top],
-        [r1_mid, r2_mid, r3_mid],
-        [r1_bot, r2_bot, r3_bot]
-    ];
+    // Reset payouts
+    payoutEls.top.innerText=0; payoutEls.mid.innerText=0; payoutEls.bot.innerText=0;
 
-    const symbols = ["🍒", "🍋", "⭐", "🔔", "🍉", "7️⃣"];
-    const multi = {"🍒":2,"🍋":2,"🔔":2,"🍉":2,"7️⃣":4,"⭐":10};
+    document.getElementById("spinSound").play();
+    if(navigator.vibrate) navigator.vibrate(100);
 
-    let allowWin = (Math.random()*100 < winRate);
-    let chosenRow = Math.floor(Math.random()*3);
-
-    rows.forEach(row=>{
-        row.forEach(r=>{
+    // Randomize all lines
+    [top, mid, bot].forEach(line=>{
+        line.forEach(r=>{
             r.style.transform="translateY(-100%)";
-            r.classList.remove("win-glow");
-        })
+            r.innerHTML=symbols[Math.floor(Math.random()*symbols.length)];
+        });
     });
 
-    setTimeout(()=>{
+    // Controlled bottom line
+    let rand=Math.random()*100;
+    let s1,s2,s3;
+    if(rand<jackpotRate){ s1=s2=s3="7️⃣"; }
+    else if(rand<winRate+jackpotRate){ s1=s2=symbols[Math.floor(Math.random()*symbols.length)]; s3=symbols[Math.floor(Math.random()*symbols.length)]; }
+    else{ s1=symbols[Math.floor(Math.random()*symbols.length)]; s2=symbols[Math.floor(Math.random()*symbols.length)]; s3=symbols[Math.floor(Math.random()*symbols.length)]; }
+    bot[0].innerHTML=s1; bot[1].innerHTML=s2; bot[2].innerHTML=s3;
 
-        rows.forEach((row,i)=>{
-            if(allowWin && i===chosenRow){
-                let sym = symbols[Math.floor(Math.random()*symbols.length)];
-                row.forEach(r=> r.innerHTML = sym );
-            } else {
-                row.forEach(r=> r.innerHTML = symbols[Math.floor(Math.random()*symbols.length)]);
-                while(row[0].innerHTML===row[1].innerHTML &&
-                      row[1].innerHTML===row[2].innerHTML){
-                    row.forEach(r=> r.innerHTML = symbols[Math.floor(Math.random()*symbols.length)]);
-                }
+    // Slide down animation
+    [top, mid, bot].flat().forEach(r=>r.style.transform="translateY(0)");
+
+    setTimeout(()=>{
+        let lines={top, mid, bot};
+        let win=0, message="❌ Try Again!";
+        for(let key in lines){
+            let line = lines[key];
+            let lineWin=0;
+            if(line[0].innerHTML===line[1].innerHTML && line[1].innerHTML===line[2].innerHTML){
+                lineWin = (key==="bot") ? bet*10 : bet*3;
+                win = lineWin;
+                message="✨ Win +"+lineWin;
+                line.forEach(r=>r.classList.add("win-glow"));
+                document.getElementById("winSound").play();
+                if(navigator.vibrate) navigator.vibrate([150,50,150]);
             }
+            payoutEls[key].innerText=lineWin;
+        }
+        coins+=win; updateCoins();
+        document.getElementById("result").innerText=message;
+
+        // Save transaction
+        db.collection("transactions").add({
+            uid, game:"slot", bet, win,
+            top: top.map(r=>r.innerHTML),
+            mid: mid.map(r=>r.innerHTML),
+            bot: bot.map(r=>r.innerHTML),
+            time: new Date()
         });
 
-        rows.forEach(row=> row.forEach(r=> r.style.transform="translateY(0)"));
-
-        setTimeout(()=>{
-            let win = 0;
-
-            if(allowWin){
-                let sym = rows[chosenRow][0].innerHTML;
-                win = bet * multi[sym];
-                rows[chosenRow].forEach(r=> r.classList.add("win-glow"));
-                winSound.play();
-                document.getElementById("result").innerHTML = "✨ WIN: +" + win;
-            } else {
-                loseSound.play();
-                document.getElementById("result").innerHTML = "❌ Try Again!";
-            }
-
-            coins += win;
-            updateCoins();
-
-        }, 700);
-
-    }, 1000);
+        setTimeout(()=>[top, mid, bot].flat().forEach(r=>r.classList.remove("win-glow")),1000);
+    },800);
 }
 </script>
-
 </body>
     </html>
