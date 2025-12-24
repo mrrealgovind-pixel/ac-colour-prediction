@@ -1,173 +1,144 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Slot Machine - JILI 3-Line</title>
+<title>Slot Game</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
 <style>
-body {margin:0; background:radial-gradient(circle,#000,#111,#000); font-family:Arial; color:white; text-align:center;}
-h2 {margin-top:20px; color:gold; text-shadow:0 0 10px gold; font-size:30px;}
-#coins,#bet {font-size:22px;margin-top:15px;font-weight:bold;color:#00ff9d;}
-.bet-btns button {width:75px;padding:8px;margin:5px;border-radius:8px;border:1px solid gold;background:#222;color:gold;font-weight:bold;}
-.slot-box {width:92%;margin:auto;background:linear-gradient(145deg,#1b1b1b,#0a0a0a);padding:20px;border-radius:20px;border:3px solid gold;box-shadow:0 0 25px rgba(255,215,0,0.4);margin-top:20px;}
-.reels {display:flex; justify-content:space-around; flex-direction:column; gap:5px;}
-.row {display:flex; justify-content:space-around; overflow:hidden; height:90px;}
-.reel {width:90px;height:90px;background:black;border:3px solid gold;border-radius:12px; font-size:50px; display:flex; justify-content:center; align-items:center; transform: translateY(-100%); transition: transform 0.7s ease;}
-.win-glow {animation:glow 1s infinite alternate;}
-@keyframes glow {from{box-shadow:0 0 10px gold;} to{box-shadow:0 0 25px yellow;}}
-button.spin-btn {width:180px;padding:15px;margin-top:25px;background:linear-gradient(135deg,#ffd700,#ffae00);border:none;border-radius:15px;font-size:22px;font-weight:bold;color:black; box-shadow:0 0 20px gold;}
-#result {font-size:26px;margin-top:15px;font-weight:bold;}
-.payout-col {margin-top:15px;font-size:20px;}
-.payout-col div{margin:5px;}
+body { font-family: Arial; background:#111; color:white; text-align:center; }
+.slot-box { font-size:45px; margin:20px auto; width:200px; padding:15px; background:#222; border-radius:10px; }
+button { padding:12px 25px; font-size:18px; border:0; border-radius:8px; background:#28a745; color:white; }
+input { padding:10px; font-size:18px; width:120px; text-align:center; }
+.result { margin-top:20px; font-size:20px; }
+.history-table { width:95%; margin:20px auto; border-collapse: collapse; }
+.history-table th, .history-table td { border:1px solid #555; padding:8px; }
 </style>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+// YOUR FIREBASE CONFIG
+const firebaseConfig = {
+   apiKey: "YOUR_KEY",
+   authDomain: "YOUR_APP",
+   databaseURL: "YOUR_DB",
+   projectId: "YOUR_PROJECT"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+let logicMode = 1; // Default
+
+// ---- FETCH LOGIC FROM ADMIN PANEL ----
+db.ref("Admin/slotLogic").on("value", (snap) => {
+    if (snap.exists()) {
+        logicMode = snap.val();
+        console.log("Current Logic:", logicMode);
+    }
+});
+
+// ---- SLOT SPIN FUNCTION ----
+function spinSlot() {
+    let bet = parseInt(document.getElementById("bet").value);
+
+    if (!bet || bet <= 0) {
+        alert("Enter valid bet");
+        return;
+    }
+
+    // 3 random symbols
+    let symbols = ["🍒", "⭐", "💎", "7️⃣"];
+    let slot1 = symbols[Math.floor(Math.random()*symbols.length)];
+    let slot2 = symbols[Math.floor(Math.random()*symbols.length)];
+    let slot3 = symbols[Math.floor(Math.random()*symbols.length)];
+
+    let willWin = false;
+    let r = Math.random();
+
+    // LOGIC 1 = 60% WIN
+    if (logicMode == 1) {
+        willWin = (r < 0.60);
+    }
+    // LOGIC 2 = 60% LOSE
+    else if (logicMode == 2) {
+        willWin = !(r < 0.60);
+    }
+
+    let winAmount = 0;
+
+    if (willWin) {
+        slot1 = slot2 = slot3 = "7️⃣"; // jackpot 3 same symbols
+        winAmount = bet * 5; // 5x multiplier
+    }
+
+    document.getElementById("s1").innerText = slot1;
+    document.getElementById("s2").innerText = slot2;
+    document.getElementById("s3").innerText = slot3;
+
+    document.getElementById("result").innerHTML =
+        willWin ? "You Won: ₹" + winAmount : "You Lost";
+
+    saveHistory(bet, winAmount, willWin);
+}
+
+// ---- SAVE HISTORY ----
+function saveHistory(bet, winAmount, win) {
+    let id = Date.now();
+    db.ref("SlotHistory/" + id).set({
+        bet: bet,
+        win: winAmount,
+        result: win ? "WIN" : "LOSE",
+        time: new Date().toLocaleString()
+    });
+
+    loadHistory();
+}
+
+// ---- LOAD HISTORY ----
+function loadHistory() {
+    db.ref("SlotHistory").limitToLast(20).on("value", (snap) => {
+        let html = "";
+        snap.forEach((data) => {
+            let d = data.val();
+            html += `
+                <tr>
+                    <td>${d.time}</td>
+                    <td>₹${d.bet}</td>
+                    <td>${d.result}</td>
+                    <td>₹${d.win}</td>
+                </tr>`;
+        });
+        document.getElementById("history").innerHTML = html;
+    });
+}
+
+</script>
+
 </head>
 <body>
 
-<h2>🎰 JILI SLOT MACHINE</h2>
-<div id="coins">Coins: 0</div>
-<div id="bet">Bet: 10</div>
-
-<div class="bet-btns">
-<button onclick="setBet(10)">10</button>
-<button onclick="setBet(20)">20</button>
-<button onclick="setBet(50)">50</button>
-<button onclick="setBet(100)">100</button>
-</div>
+<h2>Slot Machine</h2>
 
 <div class="slot-box">
-    <div class="reels">
-        <div class="row">
-            <div id="r1_top" class="reel">🍒</div>
-            <div id="r2_top" class="reel">🍋</div>
-            <div id="r3_top" class="reel">⭐</div>
-        </div>
-        <div class="row">
-            <div id="r1_mid" class="reel">🍋</div>
-            <div id="r2_mid" class="reel">⭐</div>
-            <div id="r3_mid" class="reel">🔔</div>
-        </div>
-        <div class="row">
-            <div id="r1_bot" class="reel">🍒</div>
-            <div id="r2_bot" class="reel">🍋</div>
-            <div id="r3_bot" class="reel">⭐</div>
-        </div>
-    </div>
-    <button class="spin-btn" onclick="spin()">SPIN</button>
+    <span id="s1">🍒</span>
+    <span id="s2">⭐</span>
+    <span id="s3">💎</span>
 </div>
 
-<div class="payout-col">
-    <div>Top Line Win: <span id="payout_top">0</span></div>
-    <div>Mid Line Win: <span id="payout_mid">0</span></div>
-    <div>Bot Line Win: <span id="payout_bot">0</span></div>
-</div>
+<input id="bet" type="number" placeholder="Enter Bet"><br><br>
+<button onclick="spinSlot()">SPIN</button>
 
-<p id="result"></p>
+<div class="result" id="result"></div>
 
-<audio id="winSound" src="win.mp3"></audio>
-<audio id="loseSound" src="lose.mp3"></audio>
-<audio id="spinSound" src="spin.mp3"></audio>
+<h3>History</h3>
+<table class="history-table">
+<tr><th>Time</th><th>Bet</th><th>Result</th><th>Win</th></tr>
+<tbody id="history"></tbody>
+</table>
 
-<script>
-const firebaseConfig = {
-  apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
-  authDomain: "ac-colour-prediction.firebaseapp.com",
-  projectId: "ac-colour-prediction",
-  storageBucket: "ac-colour-prediction.appspot.com",
-};
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
+<script> loadHistory(); </script>
 
-let coins=0, bet=10, uid=null;
-let winRate=40, jackpotRate=5;
-
-auth.onAuthStateChanged(async (user)=>{
-    if(!user){ location.href="index.html"; return; }
-    uid=user.uid;
-    const snap = await db.collection("users").doc(uid).get();
-    if(snap.exists){ coins = snap.data().coins||0; document.getElementById("coins").innerHTML="Coins:"+coins; }
-    const ctrl = await db.collection("slotControl").doc("settings").get();
-    if(ctrl.exists){ winRate=ctrl.data().winRate; jackpotRate=ctrl.data().jackpotRate; }
-});
-
-function setBet(amount){ bet=amount; document.getElementById("bet").innerHTML="Bet:"+bet; }
-function updateCoins(){ db.collection("users").doc(uid).update({coins}); document.getElementById("coins").innerHTML="Coins:"+coins; }
-
-async function spin(){
-    if(coins<bet){ alert("Not enough coins!"); return; }
-    coins-=bet; updateCoins();
-
-    const top=[document.getElementById("r1_top"),document.getElementById("r2_top"),document.getElementById("r3_top")];
-    const mid=[document.getElementById("r1_mid"),document.getElementById("r2_mid"),document.getElementById("r3_mid")];
-    const bot=[document.getElementById("r1_bot"),document.getElementById("r2_bot"),document.getElementById("r3_bot")];
-
-    const symbols=["🍒","🍋","⭐","🔔","🍉","7️⃣"];
-    const payoutEls = {
-        top: document.getElementById("payout_top"),
-        mid: document.getElementById("payout_mid"),
-        bot: document.getElementById("payout_bot")
-    };
-
-    // Reset payouts
-    payoutEls.top.innerText=0; payoutEls.mid.innerText=0; payoutEls.bot.innerText=0;
-
-    document.getElementById("spinSound").play();
-    if(navigator.vibrate) navigator.vibrate(100);
-
-    // Randomize all lines
-    [top, mid, bot].forEach(line=>{
-        line.forEach(r=>{
-            r.style.transform="translateY(-100%)";
-            r.innerHTML=symbols[Math.floor(Math.random()*symbols.length)];
-        });
-    });
-
-    // Controlled bottom line
-    let rand=Math.random()*100;
-    let s1,s2,s3;
-    if(rand<jackpotRate){ s1=s2=s3="7️⃣"; }
-    else if(rand<winRate+jackpotRate){ s1=s2=symbols[Math.floor(Math.random()*symbols.length)]; s3=symbols[Math.floor(Math.random()*symbols.length)]; }
-    else{ s1=symbols[Math.floor(Math.random()*symbols.length)]; s2=symbols[Math.floor(Math.random()*symbols.length)]; s3=symbols[Math.floor(Math.random()*symbols.length)]; }
-    bot[0].innerHTML=s1; bot[1].innerHTML=s2; bot[2].innerHTML=s3;
-
-    // Slide down animation
-    [top, mid, bot].flat().forEach(r=>r.style.transform="translateY(0)");
-
-    setTimeout(()=>{
-        let lines={top, mid, bot};
-        let win=0, message="❌ Try Again!";
-        for(let key in lines){
-            let line = lines[key];
-            let lineWin=0;
-            if(line[0].innerHTML===line[1].innerHTML && line[1].innerHTML===line[2].innerHTML){
-                lineWin = (key==="bot") ? bet*10 : bet*3;
-                win = lineWin;
-                message="✨ Win +"+lineWin;
-                line.forEach(r=>r.classList.add("win-glow"));
-                document.getElementById("winSound").play();
-                if(navigator.vibrate) navigator.vibrate([150,50,150]);
-            }
-            payoutEls[key].innerText=lineWin;
-        }
-        coins+=win; updateCoins();
-        document.getElementById("result").innerText=message;
-
-        // Save transaction
-        db.collection("transactions").add({
-            uid, game:"slot", bet, win,
-            top: top.map(r=>r.innerHTML),
-            mid: mid.map(r=>r.innerHTML),
-            bot: bot.map(r=>r.innerHTML),
-            time: new Date()
-        });
-
-        setTimeout(()=>[top, mid, bot].flat().forEach(r=>r.classList.remove("win-glow")),1000);
-    },800);
-}
-</script>
 </body>
 </html>
