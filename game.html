@@ -33,7 +33,7 @@
 <body>
 
 <div class="top-buttons">
-  <button onclick="location.href='profile.html'">Profile / Bank Details</button>
+  <button onclick="location.href='profile.html'">Profile / Bank</button>
   <button onclick="location.href='wallet.html'">💰 Wallet</button>
 </div>
 
@@ -44,7 +44,6 @@
 
 <div class="history" id="history"></div>
 
-<!-- UPDATED BET OPTIONS -->
 <select id="betAmount">
   <option value="10">Bet 10</option>
   <option value="20">Bet 20</option>
@@ -64,15 +63,20 @@
 <div class="msg" id="msg"></div>
 <button class="logout" onclick="logout()">Logout</button>
 
+<!-- WIN / LOSE SOUNDS -->
 <audio id="winSound" src="win.mp3"></audio>
 <audio id="loseSound" src="lose.mp3"></audio>
+
+<!-- BACKGROUND MUSIC (Base64 – no file needed) -->
+<audio id="bgSound" loop
+src="data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACAQACAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//uQxAADBQcK1BQAAAGpEAAEBAAEAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA">
+</audio>
 
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
   authDomain: "ac-colour-prediction.firebaseapp.com",
   projectId: "ac-colour-prediction",
-  storageBucket: "ac-colour-prediction.appspot.com",
 };
 firebase.initializeApp(firebaseConfig);
 
@@ -83,9 +87,15 @@ let coins = 0;
 let pick = "";
 let time = 30;
 
-/* -------------------- AUTO LOGIN + CREATE USER -------------------- */
+/* -------------------- LOGIN -------------------- */
 auth.onAuthStateChanged(async (u) => {
   if (!u) { location.href="index.html"; return; }
+
+  // AUTO PLAY BACKGROUND MUSIC
+  const bg = document.getElementById("bgSound");
+  document.body.addEventListener("click", () => {
+      bg.play().catch(()=>{});
+  }, { once: true });
 
   const userRef = db.collection("users").doc(u.uid);
   const docSnap = await userRef.get();
@@ -108,7 +118,7 @@ auth.onAuthStateChanged(async (u) => {
 function placeBet(color){
   const betAmt = parseInt(document.getElementById("betAmount").value);
   if(coins < betAmt){
-    msg.innerText = "❌ Not enough coins to place this bet";
+    msg.innerText = "❌ Not enough coins";
     return;
   }
   pick = color;
@@ -176,7 +186,7 @@ async function runResult(){
   loadHistory();
 }
 
-/* -------------------- LOAD HISTORY -------------------- */
+/* -------------------- HISTORY -------------------- */
 async function loadHistory(){
   const snap = await db.collection("rounds").orderBy("time","desc").limit(10).get();
   const historyEl = document.getElementById("history");
@@ -195,4 +205,4 @@ function logout(){ auth.signOut().then(()=>location.href="index.html"); }
 </script>
 
 </body>
-</html>
+  </html>
