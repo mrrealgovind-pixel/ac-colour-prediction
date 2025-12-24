@@ -35,7 +35,6 @@
 <div class="top-buttons">
   <button onclick="location.href='profile.html'">Profile / Bank Details</button>
   <button onclick="location.href='wallet.html'">💰 Wallet</button>
-  <button onclick="location.href='history.html'">📜 Transaction History</button>
 </div>
 
 <div class="header">AC Colour Prediction</div>
@@ -45,12 +44,15 @@
 
 <div class="history" id="history"></div>
 
+<!-- UPDATED BET OPTIONS -->
 <select id="betAmount">
+  <option value="10">Bet 10</option>
+  <option value="20">Bet 20</option>
   <option value="50">Bet 50</option>
   <option value="100">Bet 100</option>
-  <option value="200">Bet 200</option>
+  <option value="150">Bet 150</option>
+  <option value="250">Bet 250</option>
   <option value="500">Bet 500</option>
-  <option value="1000">Bet 1000</option>
 </select>
 
 <div>
@@ -125,7 +127,6 @@ async function runResult(){
   const betAmt = parseInt(document.getElementById("betAmount").value);
   if(!pick || coins < betAmt){ loadHistory(); return; }
 
-  // Fetch admin settings
   const adminAuto = await db.collection("admin").doc("auto").get();
   const adminManual = await db.collection("admin").doc("result").get();
 
@@ -134,11 +135,9 @@ async function runResult(){
   if(adminAuto.exists && adminAuto.data().enabled){
     const logic = adminAuto.data().logic || 1;
     const random = Math.random();
-    if(logic == 1){ 
-      // Logic 1: 60% Win
+    if(logic == 1){
       winColor = (random < 0.6) ? pick : ["Red","Green","Violet"].filter(c=>c!==pick)[Math.floor(Math.random()*2)];
     } else {
-      // Logic 2: 40% Win
       winColor = (random < 0.4) ? pick : ["Red","Green","Violet"].filter(c=>c!==pick)[Math.floor(Math.random()*2)];
     }
   } else if(adminManual.exists && adminManual.data().color){
@@ -147,7 +146,6 @@ async function runResult(){
     winColor = ["Red","Green","Violet"][Math.floor(Math.random()*3)];
   }
 
-  // Determine win/lose
   let win = (pick === winColor);
   if(win){
     coins += betAmt*2;
@@ -158,6 +156,7 @@ async function runResult(){
     loseSound.play();
     msg.innerText = "❌ LOSE — " + winColor;
   }
+
   coins = Math.max(coins,0);
   document.getElementById("coins").innerText = coins;
 
