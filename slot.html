@@ -4,6 +4,11 @@
 <title>Slot Machine</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
 <style>
 body {
     margin: 0;
@@ -74,7 +79,7 @@ button {
 
 <h2>🎰 Slot Machine</h2>
 
-<div id="coins">Coins: 200</div>
+<div id="coins">Coins: 0</div>
 <div id="bet">Bet: 10</div>
 
 <div class="bet-btns">
@@ -99,20 +104,48 @@ button {
 <!-- Sounds -->
 <audio id="winSound" src="win.mp3"></audio>
 <audio id="loseSound" src="lose.mp3"></audio>
-<audio id="bgMusic" src="bg.mp3" loop autoplay></audio>
+
 
 <script>
-let coins = 200;
+/* -------------------- FIREBASE CONFIG -------------------- */
+const firebaseConfig = {
+  apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
+  authDomain: "ac-colour-prediction.firebaseapp.com",
+  projectId: "ac-colour-prediction",
+  storageBucket: "ac-colour-prediction.appspot.com",
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+let coins = 0;
 let bet = 10;
+let uid = null;
 
-const symbols = ["🍒", "🍋", "⭐", "🔔", "🍉", "7️⃣"];
+/* -------------------- LOAD USER + COINS -------------------- */
+auth.onAuthStateChanged(async (user) => {
+    if (!user) { location.href = "index.html"; return; }
 
+    uid = user.uid;
+
+    const userRef = db.collection("users").doc(uid);
+    const snap = await userRef.get();
+
+    if (snap.exists) {
+        coins = snap.data().coins || 0;
+        document.getElementById("coins").innerText = "Coins: " + coins;
+    }
+});
+
+/* -------------------- BET -------------------- */
 function setBet(amount) {
     bet = amount;
     document.getElementById("bet").innerHTML = "Bet: " + bet;
 }
 
-function spin() {
+/* -------------------- SPIN -------------------- */
+async function spin() {
 
     if (coins < bet) {
         alert("Not enough coins!");
@@ -120,7 +153,9 @@ function spin() {
     }
 
     coins -= bet;
-    document.getElementById("coins").innerHTML = "Coins: " + coins;
+    updateCoins();
+
+    const symbols = ["🍒", "🍋", "⭐", "🔔", "🍉", "7️⃣"];
 
     let r1 = symbols[Math.floor(Math.random() * symbols.length)];
     let r2 = symbols[Math.floor(Math.random() * symbols.length)];
@@ -130,27 +165,46 @@ function spin() {
     document.getElementById("r2").innerHTML = r2;
     document.getElementById("r3").innerHTML = r3;
 
-    let message = "";
     let win = 0;
+    let msg = "";
 
     if (r1 === r2 && r2 === r3) {
-        win = bet * 10;         // JACKPOT
-        message = "JACKPOT! 🎉 +" + win;
-        document.getElementById("winSound").play();
-    } else if (r1 === r2 || r2 === r3 || r1 === r3) {
-        win = bet * 3;          // SMALL WIN
-        message = "Nice! +" + win;
-        document.getElementById("winSound").play();
-    } else {
-        message = "Try Again!";
-        document.getElementById("loseSound").play();
+        win = bet * 10;
+        msg = "JACKPOT! +" + win;
+        winSound.play();
+    } 
+    else if (r1 === r2 || r2 === r3 || r1 === r3) {
+        win = bet * 3;
+        msg = "Nice! +" + win;
+        winSound.play();
+    } 
+    else {
+        msg = "Try Again!";
+        loseSound.play();
     }
 
     coins += win;
-    document.getElementById("coins").innerHTML = "Coins: " + coins;
-    document.getElementById("result").innerHTML = message;
+    updateCoins();
+
+    document.getElementById("result").innerHTML = msg;
+
+    // Save transaction
+    db.collection("transactions").add({
+        uid: uid,
+        game: "slot",
+        bet: bet,
+        win: win,
+        r1, r2, r3,
+        time: new Date()
+    });
+}
+
+/* -------------------- UPDATE COINS IN FIREBASE -------------------- */
+function updateCoins() {
+    db.collection("users").doc(uid).update({ coins: coins });
+    document.getElementById("coins").innerText = "Coins: " + coins;
 }
 </script>
 
 </body>
-</html>
+    </html>
