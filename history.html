@@ -10,40 +10,20 @@
 
   <style>
     body { background:#111;color:#fff;font-family:Arial;padding:10px; }
-    h2 { text-align:center;margin-bottom:20px; }
-
-    .sectionTitle {
-      font-size:20px;
-      font-weight:bold;
-      margin-top:25px;
-      margin-bottom:10px;
-      padding-bottom:5px;
-      border-bottom:2px solid #0af;
-    }
+    h2 { text-align:center; }
 
     .card {
-      background:#222;padding:10px;margin:8px 0;border-radius:8px;
+      background:#222;padding:12px;margin:8px;border-radius:8px;
       border-left:5px solid #0af;
     }
-
-    .green { border-left-color:#00e676; }
-    .red { border-left-color:#ff5252; }
-    .orange { border-left-color:#ffab00; }
-    .blue { border-left-color:#2979ff; }
+    .win { border-left-color:#00e676; }
+    .lose { border-left-color:#ff5252; }
   </style>
 </head>
 <body>
 
-<h2>Transaction History</h2>
-
-<div class="sectionTitle">🎮 Game Result History</div>
-<div id="gameHistory">Loading...</div>
-
-<div class="sectionTitle">💰 Recharge History</div>
-<div id="rechargeHistory">Loading...</div>
-
-<div class="sectionTitle">💸 Withdrawal History</div>
-<div id="withdrawHistory">Loading...</div>
+<h2>Game History</h2>
+<div id="historyBox">Loading...</div>
 
 <script>
 /* ---------- FIREBASE ---------- */
@@ -61,75 +41,55 @@ auth.onAuthStateChanged(user=>{
   if(!user){
     location.href="index.html";
   } else {
-    loadAllHistory(user.uid);
+    loadHistory(user.uid);
   }
 });
 
-/* ---------- LOAD ALL HISTORY ---------- */
-function loadAllHistory(uid){
-
+/* ---------- LOAD TRANSACTIONS HISTORY ---------- */
+function loadHistory(uid){
   db.collection("transactions")
-    .where("uid", "==", uid)
-    .orderBy("time", "desc")
+    .where("uid","==",uid)
+    .orderBy("time","desc")
     .onSnapshot(snap=>{
 
-      let gameHTML = "";
-      let rechargeHTML = "";
-      let withdrawHTML = "";
-
       if(snap.empty){
-        document.getElementById("gameHistory").innerHTML = "<p>No Game Data</p>";
-        document.getElementById("rechargeHistory").innerHTML = "<p>No Recharge Data</p>";
-        document.getElementById("withdrawHistory").innerHTML = "<p>No Withdrawal Data</p>";
+        historyBox.innerHTML = "<p>No Game History Found.</p>";
         return;
       }
 
+      let html = "";
+
       snap.forEach(doc=>{
-        const t = doc.data();
+        const d = doc.data();
 
-        // Safe time handling
-        let finalTime = t.time || t.requestedAt || null;
-        let showTime = finalTime ? finalTime.toDate().toLocaleString() : "—";
+        let status = d.win ? "Win" : "Lose";
+        let cls = d.win ? "win" : "lose";
 
-        if(t.type === "Win" || t.type === "Lose" || t.type.includes("Game")){
-          let cls = t.type === "Win" ? "green" : "red";
-          gameHTML += `
-            <div class="card ${cls}">
-              <b>${t.type}</b><br>
-              Coins: <b>${t.coins}</b><br>
-              <small>${showTime}</small>
-            </div>`;
+        let bet = d.bet || 0;
+        let color = d.color || "-";
+        let result = d.result || "-";
+
+        let t = "";
+        try {
+          t = d.time.toDate().toLocaleString();
+        } catch(e){
+          t = "—";
         }
 
-        else if(t.type === "Recharge"){
-          let cls = t.status === "Approved" ? "green" : t.status === "Rejected" ? "red" : "orange";
-          rechargeHTML += `
-            <div class="card ${cls}">
-              <b>Recharge: ${t.status}</b><br>
-              Coins: <b>${t.coins}</b><br>
-              <small>${showTime}</small>
-            </div>`;
-        }
-
-        else if(t.type === "Withdrawal"){
-          let cls = t.status === "Approved" ? "green" : t.status === "Rejected" ? "red" : "orange";
-          withdrawHTML += `
-            <div class="card ${cls}">
-              <b>Withdrawal: ${t.status}</b><br>
-              Coins: <b>${t.coins}</b><br>
-              <small>${showTime}</small>
-            </div>`;
-        }
-
+        html += `
+          <div class="card ${cls}">
+            <b>${status}</b> — ${color}<br>
+            Bet: <b>${bet}</b><br>
+            Result: <b>${result}</b><br>
+            <small>${t}</small>
+          </div>
+        `;
       });
 
-      document.getElementById("gameHistory").innerHTML = gameHTML || "<p>No Game Data</p>";
-      document.getElementById("rechargeHistory").innerHTML = rechargeHTML || "<p>No Recharge Data</p>";
-      document.getElementById("withdrawHistory").innerHTML = withdrawHTML || "<p>No Withdrawal Data</p>";
-
+      historyBox.innerHTML = html;
     });
 }
 </script>
 
 </body>
-</html>
+  </html>
