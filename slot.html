@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Slot Machine</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+body {
+    margin: 0;
+    background: #111;
+    font-family: Arial;
+    color: white;
+    text-align: center;
+}
+
+h2 {
+    margin-top: 15px;
+    color: gold;
+}
+
+.slot-box {
+    width: 90%;
+    margin: auto;
+    background: #222;
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0 0 20px black;
+}
+
+.reels {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 20px;
+}
+
+.reel {
+    width: 80px;
+    height: 80px;
+    background: black;
+    border: 3px solid gold;
+    border-radius: 10px;
+    font-size: 50px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+button {
+    width: 150px;
+    padding: 12px;
+    background: gold;
+    border: none;
+    border-radius: 10px;
+    font-size: 18px;
+    margin-top: 25px;
+    font-weight: bold;
+}
+
+#coins, #bet {
+    font-size: 20px;
+    margin-top: 15px;
+}
+
+.bet-btns button {
+    width: 70px;
+    margin: 5px;
+    background: #333;
+    color: white;
+}
+</style>
+</head>
+
+<body>
+
+<h2>🎰 Slot Machine</h2>
+
+<div id="coins">Coins: 200</div>
+<div id="bet">Bet: 10</div>
+
+<div class="bet-btns">
+    <button onclick="setBet(10)">10</button>
+    <button onclick="setBet(20)">20</button>
+    <button onclick="setBet(50)">50</button>
+    <button onclick="setBet(100)">100</button>
+</div>
+
+<div class="slot-box">
+    <div class="reels">
+        <div id="r1" class="reel">🍒</div>
+        <div id="r2" class="reel">🍋</div>
+        <div id="r3" class="reel">⭐</div>
+    </div>
+
+    <button onclick="spin()">SPIN</button>
+</div>
+
+<p id="result" style="font-size:22px; margin-top:10px;"></p>
+
+<!-- Sounds -->
+<audio id="winSound" src="win.mp3"></audio>
+<audio id="loseSound" src="lose.mp3"></audio>
+<audio id="bgMusic" src="bg.mp3" loop autoplay></audio>
+
+<script>
+let coins = 200;
+let bet = 10;
+
+const symbols = ["🍒", "🍋", "⭐", "🔔", "🍉", "7️⃣"];
+
+function setBet(amount) {
+    bet = amount;
+    document.getElementById("bet").innerHTML = "Bet: " + bet;
+}
+
+function spin() {
+
+    if (coins < bet) {
+        alert("Not enough coins!");
+        return;
+    }
+
+    coins -= bet;
+    document.getElementById("coins").innerHTML = "Coins: " + coins;
+
+    let r1 = symbols[Math.floor(Math.random() * symbols.length)];
+    let r2 = symbols[Math.floor(Math.random() * symbols.length)];
+    let r3 = symbols[Math.floor(Math.random() * symbols.length)];
+
+    document.getElementById("r1").innerHTML = r1;
+    document.getElementById("r2").innerHTML = r2;
+    document.getElementById("r3").innerHTML = r3;
+
+    let message = "";
+    let win = 0;
+
+    if (r1 === r2 && r2 === r3) {
+        win = bet * 10;         // JACKPOT
+        message = "JACKPOT! 🎉 +" + win;
+        document.getElementById("winSound").play();
+    } else if (r1 === r2 || r2 === r3 || r1 === r3) {
+        win = bet * 3;          // SMALL WIN
+        message = "Nice! +" + win;
+        document.getElementById("winSound").play();
+    } else {
+        message = "Try Again!";
+        document.getElementById("loseSound").play();
+    }
+
+    coins += win;
+    document.getElementById("coins").innerHTML = "Coins: " + coins;
+    document.getElementById("result").innerHTML = message;
+}
+</script>
+
+</body>
+</html>
