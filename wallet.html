@@ -17,13 +17,14 @@ button,input{padding:10px;border-radius:6px;border:none;margin:5px;font-weight:b
 input{width:calc(100% - 24px);}
 hr{border:1px solid #333;}
 p{margin:5px 0;}
-.history-item{background:#222;padding:8px;border-radius:6px;margin-bottom:5px;}
+table{width:100%;border-collapse:collapse;margin-top:5px;}
+th,td{border:1px solid #555;padding:8px;text-align:left;}
+th{background:#222;}
 </style>
 </head>
 <body>
 
 <h2>My Wallet</h2>
-
 <p>Coins: <span id="coins">0</span></p>
 
 <hr>
@@ -47,12 +48,16 @@ p{margin:5px 0;}
 <hr>
 
 <h3>Recharge History</h3>
-<div id="rechHistory">Loading...</div>
+<table id="rechHistory">
+<tr><th>Amount</th><th>UTR</th><th>Status</th><th>Date</th></tr>
+</table>
 
 <hr>
 
 <h3>Withdrawal History</h3>
-<div id="withHistory">Loading...</div>
+<table id="withHistory">
+<tr><th>Amount</th><th>Status</th><th>Date</th></tr>
+</table>
 
 <script>
 const firebaseConfig = {
@@ -68,11 +73,10 @@ const db = firebase.firestore();
 let USER_ID = "";
 let USER_EMAIL = "";
 
-/* ================= LOGIN CHECK ================= */
+// ================= LOGIN CHECK =================
 auth.onAuthStateChanged(user => {
-  if(!user){
-    location.href = "login.html";
-  } else {
+  if(!user) location.href = "login.html";
+  else {
     USER_ID = user.uid;
     USER_EMAIL = user.email;
     loadWallet();
@@ -81,38 +85,31 @@ auth.onAuthStateChanged(user => {
   }
 });
 
-/* ================= LOAD LIVE COINS ================= */
+// ================= LOAD COINS =================
 function loadWallet(){
   db.collection("users").doc(USER_ID).onSnapshot(doc => {
-    if(doc.exists){
-      coins.innerText = doc.data().coins || 0;
-    }
+    coins.innerText = doc.exists && doc.data().coins ? doc.data().coins : 0;
   });
 }
 
-/* ================= SHOW ADMIN UPI ================= */
+// ================= LOAD ADMIN UPI =================
 function loadUPI(){
   db.collection("admin").doc("upi").onSnapshot(doc => {
-    if(doc.exists){
-      adminUpi.innerText = doc.data().upi;
-    } else {
-      adminUpi.innerText = "Admin has not set UPI ID";
-    }
+    adminUpi.innerText = doc.exists ? doc.data().upi : "Admin has not set UPI ID";
   });
 }
 
-/* ================= SEND RECHARGE REQUEST ================= */
+// ================= SEND RECHARGE =================
 async function sendRecharge(){
-  let amt = amount.value;
-  let utrNum = utr.value;
-
+  let amt = Number(amount.value);
+  let utrNum = utr.value.trim();
   if(!amt) return alert("Enter Amount");
   if(!utrNum) return alert("Enter UTR Number");
 
   await db.collection("walletRequests").add({
     uid: USER_ID,
     email: USER_EMAIL,
-    amount: Number(amt),
+    amount: amt,
     utr: utrNum,
     time: firebase.firestore.FieldValue.serverTimestamp(),
     status: "Pending"
@@ -123,20 +120,20 @@ async function sendRecharge(){
   utr.value = "";
 }
 
-/* ================= WITHDRAW ================= */
+// ================= WITHDRAW =================
 async function withdraw(){
-  let amt = wAmount.value;
+  let amt = Number(wAmount.value);
   if(!amt) return alert("Enter amount");
 
   const userDoc = await db.collection("users").doc(USER_ID).get();
-  let coins = userDoc.data().coins || 0;
+  let coinsVal = userDoc.exists && userDoc.data().coins ? userDoc.data().coins : 0;
 
-  if(coins < amt) return alert("Not enough coins!");
+  if(coinsVal < amt) return alert("Not enough coins!");
 
   await db.collection("withdrawals").add({
     uid: USER_ID,
     email: USER_EMAIL,
-    coins: Number(amt),
+    coins: amt,
     requestedAt: firebase.firestore.FieldValue.serverTimestamp(),
     status: "Pending"
   });
@@ -145,37 +142,39 @@ async function withdraw(){
   wAmount.value = "";
 }
 
-/* ================= LOAD HISTORY ================= */
+// ================= LOAD HISTORY =================
 function loadHistory(){
-  
   // Recharge History
   db.collection("walletRequests")
     .where("uid","==",USER_ID)
     .orderBy("time","desc")
     .onSnapshot(snapshot => {
-      let html = "";
+      let html = `<tr><th>Amount</th><th>UTR</th><th>Status</th><th>Date</th></tr>`;
+      if(snapshot.empty) html += `<tr><td colspan="4">No records found</td></tr>`;
       snapshot.forEach(doc => {
-        let data = doc.data();
-        html += `<div class="history-item">Amount: ${data.amount} | UTR: ${data.utr} | Status: ${data.status}</div>`;
+        let d = doc.data();
+        let date = d.time ? new Date(d.time.seconds*1000).toLocaleString() : "-";
+        html += `<tr><td>${d.amount || 0}</td><td>${d.utr || "-"}</td><td>${d.status || "-"}</td><td>${date}</td></tr>`;
       });
-      rechHistory.innerHTML = html || "No records found.";
+      rechHistory.innerHTML = html;
     });
 
-  // Withdraw History
+  // Withdrawal History
   db.collection("withdrawals")
     .where("uid","==",USER_ID)
     .orderBy("requestedAt","desc")
     .onSnapshot(snapshot => {
-      let html = "";
+      let html = `<tr><th>Amount</th><th>Status</th><th>Date</th></tr>`;
+      if(snapshot.empty) html += `<tr><td colspan="3">No records found</td></tr>`;
       snapshot.forEach(doc => {
-        let data = doc.data();
-        html += `<div class="history-item">Amount: ${data.coins} | Status: ${data.status}</div>`;
+        let d = doc.data();
+        let date = d.requestedAt ? new Date(d.requestedAt.seconds*1000).toLocaleString() : "-";
+        html += `<tr><td>${d.coins || 0}</td><td>${d.status || "-"}</td><td>${date}</td></tr>`;
       });
-      withHistory.innerHTML = html || "No records found.";
+      withHistory.innerHTML = html;
     });
-
 }
 </script>
 
 </body>
-</html>
+  </html>
