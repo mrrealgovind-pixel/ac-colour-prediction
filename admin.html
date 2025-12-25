@@ -1,94 +1,85 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Admin Panel</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Panel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
-<style>
-body{background:#111;color:#fff;font-family:Arial;padding:10px;}
-h2{text-align:center;margin-bottom:20px;}
-table{width:100%;border-collapse:collapse;margin-top:10px;}
-th,td{border:1px solid #555;padding:8px;text-align:left;}
-th{background:#222;}
-button{padding:6px 10px;border:none;border-radius:5px;cursor:pointer;font-weight:bold;}
-.approve{background:#00e676;color:#000;}
-.reject{background:#ff5252;color:#fff;}
-input,select{
-  width:100%;
-  padding:8px;
-  border-radius:6px;
-  border:none;
-  margin:5px 0;
-}
-.section{
-  background:#1a1a1a;
-  padding:15px;
-  border-radius:10px;
-  margin-bottom:20px;
-  box-shadow:0 0 5px #000;
-}
-</style>
+  <style>
+    body{font-family:Arial;margin:20px;}
+    table{width:100%;border-collapse:collapse;margin-top:15px;}
+    th,td{border:1px solid #ccc;padding:8px;text-align:center;}
+    button{padding:8px 12px;margin:2px;}
+    .box{border:1px solid #ddd;padding:15px;margin-top:20px;}
+  </style>
 </head>
+
 <body>
 
-<h2>Admin Panel</h2>
+<h2>ADMIN PANEL</h2>
+<button onclick="logout()">Logout</button>
 
-<div class="section">
-  <h3>Admin UPI</h3>
-  <input id="adminUpi" placeholder="Enter Admin UPI / Mobile">
-  <button class="approve" onclick="updateAdminUpi()">Save</button>
-</div>
-
-<div class="section">
-  <h3>AUTO RESULT CONTROL</h3>
-  <p id="autoStatus">Loading...</p>
+<!-- AUTO SYSTEM -->
+<div class="box">
+  <h3>AUTO RESULT SYSTEM</h3>
   <select id="autoLogic">
-    <option value="red_green">RED / GREEN</option>
-    <option value="green_red">GREEN / RED</option>
-    <option value="random">Random</option>
+    <option value="RED">RED</option>
+    <option value="GREEN">GREEN</option>
+    <option value="BLUE">BLUE</option>
   </select>
-  <button class="approve" onclick="enableAuto()">Enable Auto</button>
-  <button class="reject" onclick="disableAuto()">Disable Auto</button>
+  <button onclick="enableAuto()">Enable</button>
+  <button onclick="disableAuto()">Disable</button>
+  <p id="autoStatus"></p>
 </div>
 
-<div class="section">
-  <h3>Manual Result</h3>
-  <button class="approve" onclick="setResult('red')">RED</button>
-  <button class="approve" onclick="setResult('green')">GREEN</button>
-  <button class="approve" onclick="setResult('violet')">VIOLET</button>
+<!-- MANUAL RESULT -->
+<div class="box">
+  <h3>MANUAL RESULT</h3>
+  <button onclick="setResult('RED')">RED</button>
+  <button onclick="setResult('GREEN')">GREEN</button>
+  <button onclick="setResult('BLUE')">BLUE</button>
 </div>
 
-<div class="section">
-  <h3>Slot Machine Control</h3>
-  <p id="slotStatus">Loading...</p>
+<!-- SLOT LOGIC -->
+<div class="box">
+  <h3>SLOT LOGIC</h3>
   <select id="slotLogic">
-    <option value="40_60">40% win</option>
-    <option value="60_40">60% win</option>
-    <option value="30_70">30% win</option>
+    <option value="40_60">40% Win / 60% Lose</option>
+    <option value="60_40">60% Win / 40% Lose</option>
+    <option value="30_70">30% Win / 70% Lose</option>
   </select>
-  <button class="approve" onclick="saveSlotLogic()">Save Logic</button>
+  <button onclick="saveSlotLogic()">Save</button>
+  <p id="slotStatus"></p>
 </div>
 
-<div class="section">
-  <h3>Users</h3>
+<!-- USERS -->
+<div class="box">
+  <h3>USERS LIST</h3>
   <table id="usersTable"></table>
 </div>
 
-<div class="section">
-  <h3>Withdrawal Requests</h3>
+<!-- WITHDRAWALS -->
+<div class="box">
+  <h3>WITHDRAW REQUESTS</h3>
   <table id="withdrawTable"></table>
 </div>
 
-<div class="section">
-  <h3>Recharge Requests</h3>
+<!-- RECHARGE -->
+<div class="box">
+  <h3>RECHARGE REQUESTS</h3>
   <table id="rechargeTable"></table>
 </div>
 
-<button class="reject" style="width:100%;margin-top:20px;" onclick="logout()">Logout</button>
+<!-- ADMIN UPI -->
+<div class="box">
+  <h3>ADMIN UPI</h3>
+  <input id="adminUpi" placeholder="Enter UPI">
+  <button onclick="updateAdminUpi()">Save</button>
+</div>
 
 <script>
 
@@ -124,51 +115,61 @@ auth.onAuthStateChanged(user=>{
 
 /* AUTO SYSTEM */
 async function enableAuto(){
-  const logic = autoLogic.value;
+  const logic = document.getElementById("autoLogic").value;
   await db.collection("admin").doc("auto").set({
-    enabled:true, logic, updated:new Date()
+    enabled:true,
+    logic,
+    updated:new Date()
   });
-  alert("Auto enabled: "+logic);
+  alert("Auto Result Enabled (" + logic + ")");
   loadAutoStatus();
 }
 
 async function disableAuto(){
-  await db.collection("admin").doc("auto").update({
-    enabled:false, updated:new Date()
+  await db.collection("admin").doc("auto").set({
+    enabled:false,
+    updated:new Date()
   });
-  alert("Auto disabled");
+  alert("Auto Result Disabled");
   loadAutoStatus();
 }
 
 async function loadAutoStatus(){
   const doc = await db.collection("admin").doc("auto").get();
   if(doc.exists && doc.data().enabled){
-    autoStatus.innerText = "AUTO ENABLED ("+doc.data().logic+")";
-  } else autoStatus.innerText = "AUTO DISABLED";
+    autoStatus.innerText = "AUTO RESULT: ENABLED (" + doc.data().logic + ")";
+  } else {
+    autoStatus.innerText = "AUTO RESULT: DISABLED";
+  }
 }
 
 /* MANUAL RESULT */
 async function setResult(color){
   await db.collection("admin").doc("result").set({
-    color, mode:"manual", timestamp:new Date()
+    color,
+    mode:"manual",
+    timestamp:new Date()
   });
-  alert("Manual Result: "+color);
+  alert("Manual Result Set: " + color);
 }
 
 /* SLOT LOGIC */
 async function saveSlotLogic(){
-  const logic = slotLogic.value;
+  const logic = document.getElementById("slotLogic").value;
   let winRate = 0;
 
-  if(logic==="40_60") winRate = 40;
-  if(logic==="60_40") winRate = 60;
-  if(logic==="30_70") winRate = 30;
+  if(logic === "40_60") winRate = 40;
+  if(logic === "60_40") winRate = 60;
+  if(logic === "30_70") winRate = 30;
 
   await db.collection("slotControl").doc("settings").set({
-    logic, winRate, loseRate:100-winRate, updated:new Date()
+    logic,
+    winRate,
+    loseRate: 100 - winRate,
+    updated: new Date()
   });
 
-  alert("Slot Logic Updated");
+  alert("Slot Logic Updated!");
   loadSlotLogic();
 }
 
@@ -176,11 +177,15 @@ async function loadSlotLogic(){
   const doc = await db.collection("slotControl").doc("settings").get();
   if(doc.exists){
     slotLogic.value = doc.data().logic;
-    slotStatus.innerText = `Current: ${doc.data().logic} (${doc.data().winRate}% win)`;
-  } else slotStatus.innerText = "Not Set";
+    slotStatus.innerText =
+      "Current: " + doc.data().logic +
+      " (" + doc.data().winRate + "% Win / " + doc.data().loseRate + "% Lose)";
+  } else {
+    slotStatus.innerText = "Not Set";
+  }
 }
 
-/* USERS */
+/* USERS LIST */
 function loadUsers(){
   db.collection("users").onSnapshot(snap=>{
     let html = `<tr>
@@ -190,8 +195,9 @@ function loadUsers(){
 
     snap.forEach(doc=>{
       const d = doc.data();
+
       html += `<tr>
-        <td>${d.email}</td>
+        <td>${d.email||""}</td>
         <td>${d.coins||0}</td>
         <td>${d.upi||"-"}</td>
         <td>${d.bank||"-"}</td>
@@ -214,16 +220,21 @@ async function addCoins(uid, amount){
   });
 
   await db.collection("transactions").add({
-    uid, type:"Admin Add Coins", coins:amount, time:new Date()
+    uid,
+    type:"Admin Add Coins",
+    coins: amount,
+    time:new Date()
   });
 
-  alert("Coins Added!");
+  alert("Coins Added");
 }
 
 /* WITHDRAWALS */
 function loadWithdrawals(){
-  db.collection("withdrawals").orderBy("requestedAt","desc")
+  db.collection("withdrawals")
+    .orderBy("requestedAt","desc")
     .onSnapshot(snap=>{
+
       let html = `<tr>
         <th>User</th><th>Coins</th><th>UPI/Bank</th>
         <th>Status</th><th>Action</th>
@@ -231,10 +242,11 @@ function loadWithdrawals(){
 
       snap.forEach(doc=>{
         const d = doc.data();
+
         html += `<tr>
           <td>${d.email}</td>
           <td>${d.coins}</td>
-          <td>${d.upi||d.bank||"-"}</td>
+          <td>${d.upi || d.bank || "-"}</td>
           <td>${d.status}</td>
           <td>${
             d.status==="Pending"
@@ -254,8 +266,11 @@ async function handleWithdrawal(id, approve, coins, uid){
   const user = await ref.get();
 
   if(approve){
-    if((user.data().coins||0) < coins) return alert("Not enough coins!");
-    await ref.update({coins:user.data().coins - coins});
+    if((user.data().coins||0) < coins){
+      return alert("User does not have enough coins!");
+    }
+
+    await ref.update({coins: user.data().coins - coins});
     await db.collection("withdrawals").doc(id).update({status:"Approved"});
   } else {
     await db.collection("withdrawals").doc(id).update({status:"Rejected"});
@@ -266,11 +281,16 @@ async function handleWithdrawal(id, approve, coins, uid){
 
 /* RECHARGE */
 function loadRechargeRequests(){
-  db.collection("walletRequests").orderBy("time","desc")
+  db.collection("walletRequests")
+    .orderBy("time","desc")
     .onSnapshot(snap=>{
+
       let html = `<tr>
-        <th>User</th><th>Amount</th><th>UTR</th>
-        <th>Status</th><th>Action</th>
+        <th>User</th>
+        <th>Amount</th>
+        <th>UTR Number</th>
+        <th>Status</th>
+        <th>Action</th>
       </tr>`;
 
       snap.forEach(doc=>{
@@ -279,13 +299,13 @@ function loadRechargeRequests(){
         html += `<tr>
           <td>${d.email}</td>
           <td>${d.amount}</td>
-          <td>${d.utr||"-"}</td>
-          <td>${d.status}</td>
+          <td>${d.utr || "-"}</td>
+          <td>${d.status || "Pending"}</td>
           <td>${
-            d.status==="Pending"
-            ? `<button class="approve" onclick="approveRecharge('${doc.id}',${d.amount},'${d.uid}')">Approve</button>
+            d.status==="Approved" || d.status==="Rejected"
+            ? "-"
+            : `<button class="approve" onclick="approveRecharge('${doc.id}',${d.amount},'${d.uid}')">Approve</button>
                <button class="reject" onclick="rejectRecharge('${doc.id}')">Reject</button>`
-            : "-"
           }</td>
         </tr>`;
       });
@@ -299,26 +319,32 @@ async function approveRecharge(id, amount, uid){
     coins: firebase.firestore.FieldValue.increment(Number(amount))
   });
 
-  await db.collection("walletRequests").doc(id).update({status:"Approved"});
+  await db.collection("walletRequests").doc(id).update({
+    status:"Approved"
+  });
+
   alert("Recharge Approved!");
 }
 
 async function rejectRecharge(id){
-  await db.collection("walletRequests").doc(id).update({status:"Rejected"});
-  alert("Rejected!");
+  await db.collection("walletRequests").doc(id).update({
+    status:"Rejected"
+  });
+  alert("Recharge Rejected!");
 }
 
 /* ADMIN UPI */
 async function loadAdminUpi(){
   const doc = await db.collection("admin").doc("upi").get();
-  if(doc.exists) adminUpi.value = doc.data().upi;
+  if(doc.exists){ adminUpi.value = doc.data().upi; }
 }
 
 async function updateAdminUpi(){
   const upi = adminUpi.value.trim();
   if(!upi) return alert("Enter valid UPI ID");
+
   await db.collection("admin").doc("upi").set({upi});
-  alert("UPI Updated!");
+  alert("UPI Updated");
 }
 
 /* LOGOUT */
@@ -329,4 +355,4 @@ function logout(){
 </script>
 
 </body>
-</html>
+  </html>
