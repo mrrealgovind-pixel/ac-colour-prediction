@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Colour Game</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    body{margin:0;font-family:Arial;background:#0f0f0f;color:#fff;text-align:center;}
+    .header{font-size:22px;padding:12px;background:#000;margin-bottom:10px;}
+    .coins{font-size:18px;color:#00ff90;margin:8px;}
+
+    .history{margin:10px;display:flex;justify-content:center;flex-wrap:wrap;gap:6px;}
+    .bubble{padding:8px 12px;border-radius:50%;color:#fff;font-weight:bold;width:40px;height:40px;display:flex;align-items:center;justify-content:center;}
+    .red{background:#e53935;}
+    .green{background:#43a047;}
+    .violet{background:#8e24aa;}
+
+    select,button{padding:12px;margin:6px;width:80%;font-size:16px;border:none;border-radius:6px;cursor:pointer;}
+    .bet-btn{font-weight:bold;font-size:18px;transition:0.3s;}
+    .bet-btn:hover{transform:scale(1.1);}
+
+    #bar-container{width:90%;height:12px;background:#333;margin:10px auto;border-radius:6px;overflow:hidden;}
+    #bar{height:100%;width:100%;background:#ff9800;transition:0.3s;}
+
+    .msg{margin:12px;font-size:18px;}
+
+    .back{background:#fff;color:#000;width:40%;margin-top:12px;}
+  </style>
+</head>
+
+<body>
+
+<div class="header">🎨 Colour Game</div>
+<div class="coins">Coins: <span id="coins">0</span></div>
+
+<div id="bar-container"><div id="bar"></div></div>
+<div class="history" id="history"></div>
+
+<select id="betAmount">
+  <option value="10">Bet 10</option>
+  <option value="20">Bet 20</option>
+  <option value="50">Bet 50</option>
+  <option value="100">Bet 100</option>
+  <option value="150">Bet 150</option>
+  <option value="250">Bet 250</option>
+  <option value="500">Bet 500</option>
+</select>
+
+<div>
+  <button class="bet-btn red" onclick="placeBet('Red')">RED</button>
+  <button class="bet-btn green" onclick="placeBet('Green')">GREEN</button>
+  <button class="bet-btn violet" onclick="placeBet('Violet')">VIOLET</button>
+</div>
+
+<div class="msg" id="msg"></div>
+<button class="back" onclick="location.href='game.html'">⬅ Back</button>
+
+<script>
+/* -------------------- Firebase -------------------- */
+const firebaseConfig = {
+  apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
+  authDomain: "ac-colour-prediction.firebaseapp.com",
+  projectId: "ac-colour-prediction",
+  storageBucket: "ac-colour-prediction.appspot.com",
+};
+firebase.initializeApp(firebaseConfig);
+
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+let coins = 0;
+let pick = "";
+let time = 30;
+
+/* -------------------- AUTO LOGIN -------------------- */
+auth.onAuthStateChanged(async (u) => {
+  if (!u) { location.href="index.html"; return; }
+
+  const userRef = db.collection("users").doc(u.uid);
+  const data = (await userRef.get()).data();
+  coins = data.coins || 0;
+  document.getElementById("coins").innerText = coins;
+});
+
+/* -------------------- BET -------------------- */
+function placeBet(color){
+  const betAmt = parseInt(document.getElementById("betAmount").value);
+  if(coins < betAmt){
+    msg.innerText = "❌ Not enough coins!";
+    return;
+  }
+  pick = color;
+  msg.innerText = "Selected: " + color;
+}
+
+/* -------------------- TIMER -------------------- */
+setInterval(() => {
+  time--;
+  document.getElementById("bar").style.width = (time/30*100) + "%";
+  if(time <= 0){ runResult(); time = 30; }
+}, 1000);
+
+/* -------------------- RUN RESULT -------------------- */
+async function runResult(){
+  const betAmt = parseInt(document.getElementById("betAmount").value);
+  if(!pick || coins < betAmt){ loadHistory(); return; }
+
+  const adminAuto = await db.collection("admin").doc("auto").get();
+  const adminManual = await db.collection("admin").doc("result").get();
+
+  let winColor = "";
+
+  if(adminAuto.exists && adminAuto.data().enabled){
+    const logic = adminAuto.data().logic || 1;
+    const random = Math.random();
+    if(logic == 1){
+      winColor = (random < 0.6) ? pick : ["Red","Green","Violet"].filter(c=>c!==pick)[Math.floor(Math.random()*2)];
+    } else {
+      winColor = (random < 0.4) ? pick : ["Red","Green","Violet"].filter(c=>c!==pick)[Math.floor(Math.random()*2)];
+    }
+  } else if(adminManual.exists && adminManual.data().color){
+    winColor = adminManual.data().color;
+  } else {
+    winColor = ["Red","Green","Violet"][Math.floor(Math.random()*3)];
+  }
+
+  let win = (pick === winColor);
+  
+  if(win){
+    coins += betAmt*2;
+    msg.innerText = "🎉 WIN — " + winColor;
+  } else {
+    coins -= betAmt;
+    msg.innerText = "❌ LOSE — " + winColor;
+  }
+
+  coins = Math.max(coins,0);
+  document.getElementById("coins").innerText = coins;
+
+  const u = auth.currentUser;
+  if(u){
+    db.collection("users").doc(u.uid).update({coins});
+    db.collection("transactions").add({
+      uid: u.uid,
+      bet: betAmt,
+      color: pick,
+      result: winColor,
+      win: win,
+      time: new Date()
+    });
+  }
+
+  pick = "";
+  loadHistory();
+}
+
+/* -------------------- HISTORY -------------------- */
+async function loadHistory(){
+  const snap = await db.collection("rounds").orderBy("time","desc").limit(10).get();
+  const historyEl = document.getElementById("history");
+  historyEl.innerHTML = "";
+  snap.forEach(doc=>{
+    const c = doc.data().result;
+    const div = document.createElement("div");
+    div.className = `bubble ${c.toLowerCase()}`;
+    div.innerText = c[0];
+    historyEl.appendChild(div);
+  });
+}
+</script>
+
+</body>
+  </html>
