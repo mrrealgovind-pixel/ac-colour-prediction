@@ -22,25 +22,22 @@ th,td{border:1px solid #555;padding:8px;text-align:left;}
 th{background:#222;}
 </style>
 </head>
+
 <body>
 
 <h2>My Wallet</h2>
-<p>Coins: <span id="coins">0</span></p>
 
+<p>Coins: <span id="coins">0</span></p>
 <hr>
 
-<h3>Admin Mobile UPI</h3>
+<h3>Admin UPI ID</h3>
 <p id="adminUpi" style="font-size:18px;color:#00e676;">Loading...</p>
 
 <hr>
 
 <h3>Add Coins</h3>
 <input type="number" id="amount" placeholder="Enter Amount"><br>
-<button class="recharge" onclick="openUPI()">Pay Now</button>
-
-<!-- UTR Box -->
-<input type="text" id="utr" placeholder="Enter UTR Number">
-<button class="recharge" onclick="submitUTR()">Submit UTR</button>
+<button class="recharge" onclick="startUPIPayment()">Pay Now</button>
 
 <hr>
 
@@ -68,6 +65,7 @@ const firebaseConfig = {
   authDomain: "ac-colour-prediction.firebaseapp.com",
   projectId: "ac-colour-prediction",
 };
+
 firebase.initializeApp(firebaseConfig);
 
 const auth = firebase.auth();
@@ -78,7 +76,6 @@ let USER_EMAIL = "";
 let ADMIN_UPI = "";
 let CURRENT_REQUEST_ID = "";
 
-// ================= LOGIN CHECK =================
 auth.onAuthStateChanged(user => {
   if(!user) location.href = "login.html";
   else {
@@ -90,68 +87,65 @@ auth.onAuthStateChanged(user => {
   }
 });
 
-// ================= LOAD COINS =================
 function loadWallet(){
   db.collection("users").doc(USER_ID).onSnapshot(doc => {
     coins.innerText = doc.exists && doc.data().coins ? doc.data().coins : 0;
   });
 }
 
-// ================= LOAD ADMIN UPI (MOBILE NUMBER) =================
 function loadUPI(){
   db.collection("admin").doc("upi").onSnapshot(doc => {
     ADMIN_UPI = doc.exists ? doc.data().upi : "";
-    adminUpi.innerText = ADMIN_UPI || "Admin has not set Mobile UPI";
+    adminUpi.innerText = ADMIN_UPI || "Admin has not set UPI ID";
   });
 }
 
-// ================= OPEN UPI APP (MOBILE NUMBER PAYMENT) =================
-function openUPI(){
+// ====================== PHONEPE WORKING UPI PAYMENT ======================
+async function startUPIPayment(){
   let amt = Number(amount.value);
   if(!amt) return alert("Enter Amount");
-  if(!ADMIN_UPI) return alert("Admin mobile number not available");
+  if(!ADMIN_UPI) return alert("Admin UPI not available");
 
-  // Create UTR pending entry
-  db.collection("walletRequests").add({
+  // ADMIN_UPI example: 9876543210@ybl
+  let vpa = ADMIN_UPI;
+
+  if(!vpa.includes("@")){
+    return alert("PhonePe के लिए UPI ऐसा होना चाहिए: 9876543210@ybl");
+  }
+
+  const req = await db.collection("walletRequests").add({
     uid: USER_ID,
     email: USER_EMAIL,
     amount: amt,
     utr: "",
     status: "Waiting UTR",
     time: firebase.firestore.FieldValue.serverTimestamp()
-  }).then(doc => {
-    CURRENT_REQUEST_ID = doc.id;
-
-    // PAYMENT USING MOBILE NUMBER
-    // Example: pa=9876543210@upi
-    let upiUrl =
-      `upi://pay?pa=${ADMIN_UPI}@upi&pn=Admin&am=${amt}&cu=INR&tn=Recharge%20${amt}`;
-
-    window.location.href = upiUrl;
-
-    alert("Payment successful होने के बाद UTR नंबर paste करें");
-  });
-}
-
-// ================= SUBMIT UTR =================
-async function submitUTR(){
-  let utrVal = utr.value.trim();
-  if(!utrVal) return alert("Enter UTR");
-
-  if(!CURRENT_REQUEST_ID)
-    return alert("First complete payment and then enter UTR");
-
-  await db.collection("walletRequests").doc(CURRENT_REQUEST_ID).update({
-    utr: utrVal,
-    status: "Pending"
   });
 
-  alert("UTR Submitted! Admin will approve soon.");
-  utr.value = "";
-  amount.value = "";
+  CURRENT_REQUEST_ID = req.id;
+
+  let upiUrl =
+    `upi://pay?pa=${vpa}&pn=Admin&am=${amt}&cu=INR&tn=Recharge%20${amt}`;
+
+  window.location.href = upiUrl;
+
+  alert("Payment successful होने के बाद UTR नंबर paste करें");
+
+  checkStatus(req.id);
 }
 
-// ================= WITHDRAW =================
+function checkStatus(id){
+  const interval = setInterval(async ()=>{
+    let doc = await db.collection("walletRequests").doc(id).get();
+    if(doc.exists && doc.data().status === "Approved"){
+      clearInterval(interval);
+      alert("Coins Added Successfully!");
+      amount.value = "";
+    }
+  },3000);
+}
+
+// ====================== WITHDRAW ======================
 async function withdraw(){
   let amt = Number(wAmount.value);
   if(!amt) return alert("Enter amount");
@@ -173,9 +167,8 @@ async function withdraw(){
   wAmount.value = "";
 }
 
-// ================= LOAD HISTORY =================
+// ====================== HISTORY ======================
 function loadHistory(){
-  // Recharge History
   db.collection("walletRequests")
     .where("uid","==",USER_ID)
     .orderBy("time","desc")
@@ -185,12 +178,11 @@ function loadHistory(){
       snapshot.forEach(doc => {
         let d = doc.data();
         let date = d.time ? new Date(d.time.seconds*1000).toLocaleString() : "-";
-        html += `<tr><td>${d.amount}</td><td>${d.utr || "-"}</td><td>${d.status}</td><td>${date}</td></tr>`;
+        html += `<tr><td>${d.amount || 0}</td><td>${d.utr || "-"}</td><td>${d.status || "-"}</td><td>${date}</td></tr>`;
       });
       rechHistory.innerHTML = html;
     });
 
-  // Withdrawal History
   db.collection("withdrawals")
     .where("uid","==",USER_ID)
     .orderBy("requestedAt","desc")
@@ -200,7 +192,7 @@ function loadHistory(){
       snapshot.forEach(doc => {
         let d = doc.data();
         let date = d.requestedAt ? new Date(d.requestedAt.seconds*1000).toLocaleString() : "-";
-        html += `<tr><td>${d.coins}</td><td>${d.status}</td><td>${date}</td></tr>`;
+        html += `<tr><td>${d.coins || 0}</td><td>${d.status || "-"}</td><td>${date}</td></tr>`;
       });
       withHistory.innerHTML = html;
     });
@@ -208,4 +200,4 @@ function loadHistory(){
 </script>
 
 </body>
-</html>
+  </html>
