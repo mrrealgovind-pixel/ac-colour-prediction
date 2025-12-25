@@ -7,6 +7,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
 
 <style>
 body{background:#111;color:#fff;font-family:Arial,sans-serif;padding:10px;}
@@ -20,24 +21,28 @@ p{margin:5px 0;}
 table{width:100%;border-collapse:collapse;margin-top:5px;}
 th,td{border:1px solid #555;padding:8px;text-align:left;}
 th{background:#222;}
+#qrCode{margin:10px auto; display:block; width:200px; height:200px; background:#fff; border-radius:8px; padding:10px;}
 </style>
 </head>
-
 <body>
 
 <h2>My Wallet</h2>
-
 <p>Coins: <span id="coins">0</span></p>
+
 <hr>
 
-<h3>Admin UPI ID</h3>
+<h3>Admin UPI / Mobile</h3>
 <p id="adminUpi" style="font-size:18px;color:#00e676;">Loading...</p>
 
 <hr>
 
 <h3>Add Coins</h3>
 <input type="number" id="amount" placeholder="Enter Amount"><br>
-<button class="recharge" onclick="startUPIPayment()">Pay Now</button>
+<button class="recharge" onclick="generateQR()">Generate QR</button>
+<p>Scan QR with PhonePe / GooglePay / Paytm</p>
+<canvas id="qrCode"></canvas>
+<input type="text" id="utr" placeholder="Enter UTR Number after payment"><br>
+<button class="recharge" onclick="submitUTR()">Submit UTR</button>
 
 <hr>
 
@@ -65,7 +70,6 @@ const firebaseConfig = {
   authDomain: "ac-colour-prediction.firebaseapp.com",
   projectId: "ac-colour-prediction",
 };
-
 firebase.initializeApp(firebaseConfig);
 
 const auth = firebase.auth();
@@ -74,8 +78,8 @@ const db = firebase.firestore();
 let USER_ID = "";
 let USER_EMAIL = "";
 let ADMIN_UPI = "";
-let CURRENT_REQUEST_ID = "";
 
+// ================= LOGIN CHECK =================
 auth.onAuthStateChanged(user => {
   if(!user) location.href = "login.html";
   else {
@@ -87,12 +91,14 @@ auth.onAuthStateChanged(user => {
   }
 });
 
+// ================= LOAD COINS =================
 function loadWallet(){
   db.collection("users").doc(USER_ID).onSnapshot(doc => {
     coins.innerText = doc.exists && doc.data().coins ? doc.data().coins : 0;
   });
 }
 
+// ================= LOAD ADMIN UPI =================
 function loadUPI(){
   db.collection("admin").doc("upi").onSnapshot(doc => {
     ADMIN_UPI = doc.exists ? doc.data().upi : "";
@@ -100,52 +106,60 @@ function loadUPI(){
   });
 }
 
-// ====================== PHONEPE WORKING UPI PAYMENT ======================
-async function startUPIPayment(){
+// ================= GENERATE QR =================
+async function generateQR(){
   let amt = Number(amount.value);
   if(!amt) return alert("Enter Amount");
-  if(!ADMIN_UPI) return alert("Admin UPI not available");
+  if(!ADMIN_UPI) return alert("Admin UPI / Mobile not available");
 
-  // ADMIN_UPI example: 9876543210@ybl
-  let vpa = ADMIN_UPI;
-
-  if(!vpa.includes("@")){
-    return alert("PhonePe के लिए UPI ऐसा होना चाहिए: 9876543210@ybl");
-  }
-
-  const req = await db.collection("walletRequests").add({
+  // Create pending recharge request
+  await db.collection("walletRequests").add({
     uid: USER_ID,
     email: USER_EMAIL,
     amount: amt,
     utr: "",
-    status: "Waiting UTR",
+    status: "Pending",
     time: firebase.firestore.FieldValue.serverTimestamp()
   });
 
-  CURRENT_REQUEST_ID = req.id;
+  // UPI URL for QR
+  let upiUrl = `upi://pay?pa=${ADMIN_UPI}&pn=AC%20Colour%20Admin&am=${amt}&cu=INR&tn=Recharge%20${amt}`;
 
-  let upiUrl =
-    `upi://pay?pa=${vpa}&pn=Admin&am=${amt}&cu=INR&tn=Recharge%20${amt}`;
-
-  window.location.href = upiUrl;
-
-  alert("Payment successful होने के बाद UTR नंबर paste करें");
-
-  checkStatus(req.id);
+  // Generate QR
+  const canvas = document.getElementById('qrCode');
+  QRCode.toCanvas(canvas, upiUrl, { width: 200 }, function (error) {
+    if (error) console.error(error);
+  });
 }
 
-function checkStatus(id){
-  const interval = setInterval(async ()=>{
-    let doc = await db.collection("walletRequests").doc(id).get();
-    if(doc.exists && doc.data().status === "Approved"){
-      clearInterval(interval);
-      alert("Coins Added Successfully!");
-      amount.value = "";
-    }
-  },3000);
+// ================= SUBMIT UTR =================
+async function submitUTR(){
+  let utrNum = utr.value.trim();
+  let amt = Number(amount.value);
+  if(!utrNum) return alert("Enter UTR Number");
+  if(!amt) return alert("Enter Amount");
+
+  // Save UTR to pending request
+  const pending = await db.collection("walletRequests")
+    .where("uid","==",USER_ID)
+    .where("status","==","Pending")
+    .orderBy("time","desc")
+    .limit(1)
+    .get();
+
+  if(!pending.empty){
+    const docId = pending.docs[0].id;
+    await db.collection("walletRequests").doc(docId).update({utr: utrNum});
+    alert("UTR submitted. Admin will approve and coins will be added.");
+    utr.value = "";
+    amount.value = "";
+    document.getElementById('qrCode').getContext('2d').clearRect(0,0,200,200);
+  } else {
+    alert("No pending request found");
+  }
 }
 
-// ====================== WITHDRAW ======================
+// ================= WITHDRAW =================
 async function withdraw(){
   let amt = Number(wAmount.value);
   if(!amt) return alert("Enter amount");
@@ -167,8 +181,9 @@ async function withdraw(){
   wAmount.value = "";
 }
 
-// ====================== HISTORY ======================
+// ================= LOAD HISTORY =================
 function loadHistory(){
+  // Recharge History
   db.collection("walletRequests")
     .where("uid","==",USER_ID)
     .orderBy("time","desc")
@@ -183,6 +198,7 @@ function loadHistory(){
       rechHistory.innerHTML = html;
     });
 
+  // Withdrawal History
   db.collection("withdrawals")
     .where("uid","==",USER_ID)
     .orderBy("requestedAt","desc")
@@ -200,4 +216,4 @@ function loadHistory(){
 </script>
 
 </body>
-  </html>
+</html>
