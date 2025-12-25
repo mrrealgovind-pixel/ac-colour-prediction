@@ -18,10 +18,17 @@ button,input{padding:10px;border-radius:6px;border:none;margin:5px;font-weight:b
 input{width:calc(100% - 24px);}
 hr{border:1px solid #333;}
 p{margin:5px 0;}
-table{width:100%;border-collapse:collapse;margin-top:5px;}
-th,td{border:1px solid #555;padding:8px;text-align:left;}
-th{background:#222;}
 #qrCode{margin:10px auto; display:block; width:200px; height:200px; background:#fff; border-radius:8px; padding:10px;}
+.notice-banner{
+  background:#222;
+  border:1px solid #00e5ff;
+  padding:15px;
+  margin-top:20px;
+  border-radius:8px;
+  text-align:center;
+  font-weight:bold;
+  color:#00e5ff;
+}
 </style>
 </head>
 <body>
@@ -52,17 +59,10 @@ th{background:#222;}
 
 <hr>
 
-<h3>Recharge History</h3>
-<table id="rechHistory">
-<tr><th>Amount</th><th>UTR</th><th>Status</th><th>Date</th></tr>
-</table>
-
-<hr>
-
-<h3>Withdrawal History</h3>
-<table id="withHistory">
-<tr><th>Amount</th><th>Status</th><th>Date</th></tr>
-</table>
+<!-- Banner Instead of History -->
+<div class="notice-banner">
+  Guys, ye suchna hii guyes ye suchna
+</div>
 
 <script>
 const firebaseConfig = {
@@ -87,7 +87,6 @@ auth.onAuthStateChanged(user => {
     USER_EMAIL = user.email;
     loadWallet();
     loadUPI();
-    loadHistory();
   }
 });
 
@@ -112,16 +111,6 @@ async function generateQR(){
   if(!amt) return alert("Enter Amount");
   if(!ADMIN_UPI) return alert("Admin UPI / Mobile not available");
 
-  // Create pending recharge request
-  await db.collection("walletRequests").add({
-    uid: USER_ID,
-    email: USER_EMAIL,
-    amount: amt,
-    utr: "",
-    status: "Pending",
-    time: firebase.firestore.FieldValue.serverTimestamp()
-  });
-
   // UPI URL for QR
   let upiUrl = `upi://pay?pa=${ADMIN_UPI}&pn=AC%20Colour%20Admin&am=${amt}&cu=INR&tn=Recharge%20${amt}`;
 
@@ -139,7 +128,7 @@ async function submitUTR(){
   if(!utrNum) return alert("Enter UTR Number");
   if(!amt) return alert("Enter Amount");
 
-  // Save UTR to pending request
+  // Save UTR to the latest pending recharge request
   const pending = await db.collection("walletRequests")
     .where("uid","==",USER_ID)
     .where("status","==","Pending")
@@ -149,11 +138,17 @@ async function submitUTR(){
 
   if(!pending.empty){
     const docId = pending.docs[0].id;
-    await db.collection("walletRequests").doc(docId).update({utr: utrNum});
+    await db.collection("walletRequests").doc(docId).update({
+      utr: utrNum,
+      amount: amt,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
     alert("UTR submitted. Admin will approve and coins will be added.");
     utr.value = "";
     amount.value = "";
-    document.getElementById('qrCode').getContext('2d').clearRect(0,0,200,200);
+    const canvas = document.getElementById('qrCode');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
   } else {
     alert("No pending request found");
   }
@@ -179,39 +174,6 @@ async function withdraw(){
 
   alert("Withdrawal Request Sent!");
   wAmount.value = "";
-}
-
-// ================= LOAD HISTORY =================
-function loadHistory(){
-  // Recharge History
-  db.collection("walletRequests")
-    .where("uid","==",USER_ID)
-    .orderBy("time","desc")
-    .onSnapshot(snapshot => {
-      let html = `<tr><th>Amount</th><th>UTR</th><th>Status</th><th>Date</th></tr>`;
-      if(snapshot.empty) html += `<tr><td colspan="4">No records found</td></tr>`;
-      snapshot.forEach(doc => {
-        let d = doc.data();
-        let date = d.time ? new Date(d.time.seconds*1000).toLocaleString() : "-";
-        html += `<tr><td>${d.amount || 0}</td><td>${d.utr || "-"}</td><td>${d.status || "-"}</td><td>${date}</td></tr>`;
-      });
-      rechHistory.innerHTML = html;
-    });
-
-  // Withdrawal History
-  db.collection("withdrawals")
-    .where("uid","==",USER_ID)
-    .orderBy("requestedAt","desc")
-    .onSnapshot(snapshot => {
-      let html = `<tr><th>Amount</th><th>Status</th><th>Date</th></tr>`;
-      if(snapshot.empty) html += `<tr><td colspan="3">No records found</td></tr>`;
-      snapshot.forEach(doc => {
-        let d = doc.data();
-        let date = d.requestedAt ? new Date(d.requestedAt.seconds*1000).toLocaleString() : "-";
-        html += `<tr><td>${d.coins || 0}</td><td>${d.status || "-"}</td><td>${date}</td></tr>`;
-      });
-      withHistory.innerHTML = html;
-    });
 }
 </script>
 
