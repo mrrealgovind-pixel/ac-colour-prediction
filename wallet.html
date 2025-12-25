@@ -22,25 +22,23 @@ th,td{border:1px solid #555;padding:8px;text-align:left;}
 th{background:#222;}
 </style>
 </head>
-
 <body>
 
 <h2>My Wallet</h2>
 <p>Coins: <span id="coins">0</span></p>
+
 <hr>
 
-<h3>Admin UPI ID</h3>
+<h3>Admin Mobile UPI</h3>
 <p id="adminUpi" style="font-size:18px;color:#00e676;">Loading...</p>
 
 <hr>
 
-<!-- ================= RECHARGE SECTION ================= -->
 <h3>Add Coins</h3>
-
 <input type="number" id="amount" placeholder="Enter Amount"><br>
 <button class="recharge" onclick="openUPI()">Pay Now</button>
 
-<!-- UTR INPUT -->
+<!-- UTR Box -->
 <input type="text" id="utr" placeholder="Enter UTR Number">
 <button class="recharge" onclick="submitUTR()">Submit UTR</button>
 
@@ -65,14 +63,13 @@ th{background:#222;}
 </table>
 
 <script>
-
 const firebaseConfig = {
   apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
   authDomain: "ac-colour-prediction.firebaseapp.com",
   projectId: "ac-colour-prediction",
 };
-
 firebase.initializeApp(firebaseConfig);
+
 const auth = firebase.auth();
 const db = firebase.firestore();
 
@@ -100,21 +97,21 @@ function loadWallet(){
   });
 }
 
-// ================= LOAD ADMIN UPI =================
+// ================= LOAD ADMIN UPI (MOBILE NUMBER) =================
 function loadUPI(){
   db.collection("admin").doc("upi").onSnapshot(doc => {
     ADMIN_UPI = doc.exists ? doc.data().upi : "";
-    adminUpi.innerText = ADMIN_UPI || "Admin has not set UPI ID";
+    adminUpi.innerText = ADMIN_UPI || "Admin has not set Mobile UPI";
   });
 }
 
-// ================= OPEN UPI APP =================
+// ================= OPEN UPI APP (MOBILE NUMBER PAYMENT) =================
 function openUPI(){
   let amt = Number(amount.value);
   if(!amt) return alert("Enter Amount");
-  if(!ADMIN_UPI) return alert("Admin UPI not available");
+  if(!ADMIN_UPI) return alert("Admin mobile number not available");
 
-  // Create request with empty UTR
+  // Create UTR pending entry
   db.collection("walletRequests").add({
     uid: USER_ID,
     email: USER_EMAIL,
@@ -125,8 +122,10 @@ function openUPI(){
   }).then(doc => {
     CURRENT_REQUEST_ID = doc.id;
 
+    // PAYMENT USING MOBILE NUMBER
+    // Example: pa=9876543210@upi
     let upiUrl =
-      `upi://pay?pa=${ADMIN_UPI}&pn=Admin&am=${amt}&cu=INR&tn=Recharge%20${amt}`;
+      `upi://pay?pa=${ADMIN_UPI}@upi&pn=Admin&am=${amt}&cu=INR&tn=Recharge%20${amt}`;
 
     window.location.href = upiUrl;
 
@@ -134,18 +133,20 @@ function openUPI(){
   });
 }
 
-// ================= USER SUBMITS UTR =================
+// ================= SUBMIT UTR =================
 async function submitUTR(){
   let utrVal = utr.value.trim();
   if(!utrVal) return alert("Enter UTR");
-  if(!CURRENT_REQUEST_ID) return alert("First make payment then enter UTR");
+
+  if(!CURRENT_REQUEST_ID)
+    return alert("First complete payment and then enter UTR");
 
   await db.collection("walletRequests").doc(CURRENT_REQUEST_ID).update({
     utr: utrVal,
     status: "Pending"
   });
 
-  alert("UTR submitted! Admin will approve soon.");
+  alert("UTR Submitted! Admin will approve soon.");
   utr.value = "";
   amount.value = "";
 }
@@ -174,7 +175,6 @@ async function withdraw(){
 
 // ================= LOAD HISTORY =================
 function loadHistory(){
-
   // Recharge History
   db.collection("walletRequests")
     .where("uid","==",USER_ID)
@@ -185,7 +185,7 @@ function loadHistory(){
       snapshot.forEach(doc => {
         let d = doc.data();
         let date = d.time ? new Date(d.time.seconds*1000).toLocaleString() : "-";
-        html += `<tr><td>${d.amount || 0}</td><td>${d.utr || "-"}</td><td>${d.status}</td><td>${date}</td></tr>`;
+        html += `<tr><td>${d.amount}</td><td>${d.utr || "-"}</td><td>${d.status}</td><td>${date}</td></tr>`;
       });
       rechHistory.innerHTML = html;
     });
@@ -200,12 +200,11 @@ function loadHistory(){
       snapshot.forEach(doc => {
         let d = doc.data();
         let date = d.requestedAt ? new Date(d.requestedAt.seconds*1000).toLocaleString() : "-";
-        html += `<tr><td>${d.coins || 0}</td><td>${d.status}</td><td>${date}</td></tr>`;
+        html += `<tr><td>${d.coins}</td><td>${d.status}</td><td>${date}</td></tr>`;
       });
       withHistory.innerHTML = html;
     });
 }
-
 </script>
 
 </body>
