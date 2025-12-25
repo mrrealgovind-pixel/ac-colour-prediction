@@ -36,8 +36,7 @@ th{background:#222;}
 
 <h3>Add Coins</h3>
 <input type="number" id="amount" placeholder="Enter Amount"><br>
-<input type="text" id="utr" placeholder="Enter UTR Number"><br>
-<button class="recharge" onclick="sendRecharge()">Submit UTR</button>
+<button class="recharge" onclick="startUPIPayment()">Pay Now</button>
 
 <hr>
 
@@ -72,6 +71,7 @@ const db = firebase.firestore();
 
 let USER_ID = "";
 let USER_EMAIL = "";
+let ADMIN_UPI = "";
 
 // ================= LOGIN CHECK =================
 auth.onAuthStateChanged(user => {
@@ -95,29 +95,46 @@ function loadWallet(){
 // ================= LOAD ADMIN UPI =================
 function loadUPI(){
   db.collection("admin").doc("upi").onSnapshot(doc => {
-    adminUpi.innerText = doc.exists ? doc.data().upi : "Admin has not set UPI ID";
+    ADMIN_UPI = doc.exists ? doc.data().upi : "";
+    adminUpi.innerText = ADMIN_UPI || "Admin has not set UPI ID";
   });
 }
 
-// ================= SEND RECHARGE =================
-async function sendRecharge(){
+// ================= START UPI PAYMENT =================
+async function startUPIPayment(){
   let amt = Number(amount.value);
-  let utrNum = utr.value.trim();
   if(!amt) return alert("Enter Amount");
-  if(!utrNum) return alert("Enter UTR Number");
+  if(!ADMIN_UPI) return alert("Admin UPI not available");
 
-  await db.collection("walletRequests").add({
+  // Create pending recharge request
+  const req = await db.collection("walletRequests").add({
     uid: USER_ID,
     email: USER_EMAIL,
     amount: amt,
-    utr: utrNum,
-    time: firebase.firestore.FieldValue.serverTimestamp(),
-    status: "Pending"
+    utr: "",
+    status: "Pending",
+    time: firebase.firestore.FieldValue.serverTimestamp()
   });
 
-  alert("Recharge Request Submitted!");
-  amount.value = "";
-  utr.value = "";
+  // Open UPI App
+  let upiUrl =
+    `upi://pay?pa=${ADMIN_UPI}&pn=AC%20Colour%20Admin&am=${amt}&cu=INR&tn=Recharge%20${amt}`;
+
+  window.location.href = upiUrl;
+
+  // Auto check status every 3 sec
+  checkStatus(req.id);
+}
+
+function checkStatus(id){
+  const interval = setInterval(async ()=>{
+    let doc = await db.collection("walletRequests").doc(id).get();
+    if(doc.exists && doc.data().status === "Approved"){
+      clearInterval(interval);
+      alert("Coins Added Successfully!");
+      amount.value = "";
+    }
+  },3000);
 }
 
 // ================= WITHDRAW =================
