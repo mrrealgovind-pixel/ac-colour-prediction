@@ -118,7 +118,7 @@ async function spin(){
     document.getElementById("spinSound").play();
     if(navigator.vibrate) navigator.vibrate(100);
 
-    // Randomize all lines
+    // Randomize visuals for all 3 lines
     [top, mid, bot].forEach(line=>{
         line.forEach(r=>{
             r.style.transform="translateY(-100%)";
@@ -126,13 +126,23 @@ async function spin(){
         });
     });
 
-    // Controlled bottom line
+    // Controlled bottom line (admin logic)
     let rand=Math.random()*100;
     let s1,s2,s3;
     if(rand<jackpotRate){ s1=s2=s3="7️⃣"; }
-    else if(rand<winRate+jackpotRate){ s1=s2=symbols[Math.floor(Math.random()*symbols.length)]; s3=symbols[Math.floor(Math.random()*symbols.length)]; }
-    else{ s1=symbols[Math.floor(Math.random()*symbols.length)]; s2=symbols[Math.floor(Math.random()*symbols.length)]; s3=symbols[Math.floor(Math.random()*symbols.length)]; }
-    bot[0].innerHTML=s1; bot[1].innerHTML=s2; bot[2].innerHTML=s3;
+    else if(rand<winRate+jackpotRate){ 
+        s1=s2=symbols[Math.floor(Math.random()*symbols.length)];
+        s3=symbols[Math.floor(Math.random()*symbols.length)];
+    }
+    else{ 
+        s1=symbols[Math.floor(Math.random()*symbols.length)];
+        s2=symbols[Math.floor(Math.random()*symbols.length)];
+        s3=symbols[Math.floor(Math.random()*symbols.length)];
+    }
+
+    bot[0].innerHTML=s1; 
+    bot[1].innerHTML=s2; 
+    bot[2].innerHTML=s3;
 
     // Slide down animation
     [top, mid, bot].flat().forEach(r=>r.style.transform="translateY(0)");
@@ -140,21 +150,39 @@ async function spin(){
     setTimeout(()=>{
         let lines={top, mid, bot};
         let win=0, message="❌ Try Again!";
+
         for(let key in lines){
             let line = lines[key];
             let lineWin=0;
+
+            // 3 symbol match
             if(line[0].innerHTML===line[1].innerHTML && line[1].innerHTML===line[2].innerHTML){
-                lineWin = (key==="bot") ? bet*10 : bet*3;
-                win = lineWin;
-                message="✨ Win +"+lineWin;
+
+                // ✅ YOUR JACKPOT SYSTEM
+                if(key==="top"){ 
+                    lineWin = bet * 10;   // Top 10x
+                } 
+                else if(key==="mid"){ 
+                    lineWin = bet * 4;    // Mid 4x
+                } 
+                else if(key==="bot"){ 
+                    lineWin = bet * 3;    // Bottom 3x
+                }
+
+                win += lineWin;
+                message="✨ Win +"+win;
+
                 line.forEach(r=>r.classList.add("win-glow"));
                 document.getElementById("winSound").play();
                 if(navigator.vibrate) navigator.vibrate([150,50,150]);
             }
-            payoutEls[key].innerText=lineWin;
+
+            payoutEls[key].innerText = lineWin;
         }
-        coins+=win; updateCoins();
-        document.getElementById("result").innerText=message;
+
+        coins += win;
+        updateCoins();
+        document.getElementById("result").innerText = message;
 
         // Save transaction
         db.collection("transactions").add({
@@ -170,4 +198,4 @@ async function spin(){
 }
 </script>
 </body>
-    </html>
+                </html>
