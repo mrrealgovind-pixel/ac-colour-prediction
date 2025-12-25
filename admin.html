@@ -4,12 +4,64 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin Panel</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
 <style>
-body{font-family:sans-serif;margin:20px;}
-table{width:100%;border-collapse:collapse;margin-top:10px;}
-th,td{border:1px solid #ccc;padding:5px;text-align:center;}
-button{margin:2px;}
-section{margin-bottom:30px;}
+body {
+  font-family: 'Roboto', sans-serif;
+  margin: 0;
+  padding: 0 10px;
+  background: #f5f5f5;
+}
+h2, h3 { margin: 5px 0; }
+section {
+  background: #fff;
+  padding: 15px;
+  margin: 10px 0;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+select, input, button {
+  padding: 8px 10px;
+  margin: 5px 0;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+}
+button {
+  background: #4CAF50;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: 0.3s;
+}
+button:hover {
+  background: #45a049;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  display: block;
+  overflow-x: auto;
+}
+th, td {
+  padding: 8px;
+  border: 1px solid #ddd;
+  min-width: 80px;
+  text-align: center;
+}
+th {
+  background: #f0f0f0;
+}
+#usersTableContainer, #withdrawTableContainer, #rechargeTableContainer {
+  max-height: 300px;
+  overflow-y: auto;
+  margin-top: 10px;
+}
+.logoutBtn {
+  background: #f44336;
+  margin-top: 10px;
+}
+.logoutBtn:hover { background: #e53935; }
 </style>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -54,19 +106,25 @@ section{margin-bottom:30px;}
 <!-- USERS LIST -->
 <section>
 <h3>All Users</h3>
+<div id="usersTableContainer">
 <table id="usersTable"><tr><td>Loading...</td></tr></table>
+</div>
 </section>
 
 <!-- WITHDRAWALS -->
 <section>
 <h3>Withdrawals</h3>
+<div id="withdrawTableContainer">
 <table id="withdrawTable"><tr><td>Loading...</td></tr></table>
+</div>
 </section>
 
 <!-- RECHARGE REQUESTS -->
 <section>
 <h3>Recharge Requests</h3>
+<div id="rechargeTableContainer">
 <table id="rechargeTable"><tr><td>Loading...</td></tr></table>
+</div>
 </section>
 
 <!-- ADMIN UPI -->
@@ -76,7 +134,7 @@ section{margin-bottom:30px;}
 <button onclick="updateAdminUpi()">Update UPI</button>
 </section>
 
-<button onclick="logout()">Logout</button>
+<button class="logoutBtn" onclick="logout()">Logout</button>
 
 <script>
 // Firebase Config
@@ -89,13 +147,11 @@ const firebaseConfig = {
   appId: "1:471938348888:web:ac3fc3eb1939eb7cbe172d",
   measurementId: "G-QJ07DWRNYY"
 };
-
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 const ADMIN_EMAIL = "admin@gmail.com";
 
-// DOM elements
 const usersTable = document.getElementById("usersTable");
 const withdrawTable = document.getElementById("withdrawTable");
 const rechargeTable = document.getElementById("rechargeTable");
@@ -122,80 +178,54 @@ auth.onAuthStateChanged(user=>{
 /* AUTO SYSTEM */
 async function enableAuto(){
   const logic = autoLogic.value;
-  await db.collection("admin").doc("auto").set({
-    enabled:true,
-    logic,
-    updated:new Date()
-  });
+  await db.collection("admin").doc("auto").set({ enabled:true, logic, updated:new Date() });
   alert("Auto Enabled ("+logic+")");
   loadAutoStatus();
 }
 async function disableAuto(){
-  await db.collection("admin").doc("auto").set({
-    enabled:false,
-    updated:new Date()
-  });
+  await db.collection("admin").doc("auto").set({ enabled:false, updated:new Date() });
   alert("Auto Disabled");
   loadAutoStatus();
 }
 async function loadAutoStatus(){
   const doc = await db.collection("admin").doc("auto").get();
-  if(doc.exists && doc.data().enabled){
-    autoStatus.innerText = "AUTO: ENABLED (" + doc.data().logic + ")";
-  } else {
-    autoStatus.innerText = "AUTO: DISABLED";
-  }
+  autoStatus.innerText = doc.exists && doc.data().enabled ? "AUTO: ENABLED (" + doc.data().logic + ")" : "AUTO: DISABLED";
 }
 
 /* MANUAL RESULT */
 async function setResult(color){
-  await db.collection("admin").doc("result").set({
-    color,
-    mode:"manual",
-    timestamp:new Date()
-  });
+  await db.collection("admin").doc("result").set({ color, mode:"manual", timestamp:new Date() });
   alert("Manual Result: " + color);
 }
 
 /* SLOT LOGIC */
 async function saveSlotLogic(){
   const logic = slotLogic.value;
-  let winRate = 0;
-  let loseRate = 0;
-
+  let winRate=0, loseRate=0;
   if(logic==="60_40"){ winRate=60; loseRate=40; }
   if(logic==="70_30"){ winRate=30; loseRate=70; }
   if(logic==="40_60"){ winRate=40; loseRate=60; }
-
-  await db.collection("slotControl").doc("settings").set({
-    logic,
-    winRate,
-    loseRate,
-    updated:new Date()
-  });
+  await db.collection("slotControl").doc("settings").set({ logic, winRate, loseRate, updated:new Date() });
   alert("Slot Logic Updated!");
   loadSlotLogicData();
 }
-
 async function loadSlotLogicData(){
   const doc = await db.collection("slotControl").doc("settings").get();
-  if(doc.exists){
-    slotLogic.value = doc.data().logic;
-    slotStatus.innerText = "Current: "+doc.data().logic+" ("+doc.data().winRate+"% Win / "+doc.data().loseRate+"% Lose)";
-  } else {
-    slotStatus.innerText = "Not Set";
-  }
+  slotStatus.innerText = doc.exists ? "Current: "+doc.data().logic+" ("+doc.data().winRate+"% Win / "+doc.data().loseRate+"% Lose)" : "Not Set";
+  if(doc.exists) slotLogic.value = doc.data().logic;
 }
 
 /* USERS */
 function loadUsers(){
   db.collection("users").onSnapshot(snap=>{
-    let html = `<tr>
-      <th>Email</th><th>Coins</th><th>UPI</th><th>Bank</th>
-      <th>Account</th><th>IFSC</th><th>Add Coins</th>
+    let users=[];
+    snap.forEach(doc=>{ users.push({...doc.data(), id: doc.id}); });
+    // active users top
+    users.sort((a,b)=> (b.coins||0) - (a.coins||0));
+    let html=`<tr>
+      <th>Email</th><th>Coins</th><th>UPI</th><th>Bank</th><th>Account</th><th>IFSC</th><th>Add Coins</th>
     </tr>`;
-    snap.forEach(doc=>{
-      const d = doc.data();
+    users.forEach(d=>{
       html+=`<tr>
         <td>${d.email||"undefined"}</td>
         <td>${d.coins||0}</td>
@@ -204,12 +234,12 @@ function loadUsers(){
         <td>${d.account||"-"}</td>
         <td>${d.ifsc||"-"}</td>
         <td>
-          <button onclick="addCoins('${doc.id}',100)">+100</button>
-          <button onclick="addCoins('${doc.id}',500)">+500</button>
+          <button onclick="addCoins('${d.id}',100)">+100</button>
+          <button onclick="addCoins('${d.id}',500)">+500</button>
         </td>
       </tr>`;
     });
-    usersTable.innerHTML = html;
+    usersTable.innerHTML=html;
   });
 }
 async function addCoins(uid, amt){
@@ -227,14 +257,9 @@ function loadWithdrawals(){
     snap.forEach(doc=>{
       const d=doc.data();
       html+=`<tr>
-        <td>${d.email}</td>
-        <td>${d.coins}</td>
-        <td>${d.upi||d.bank||"-"}</td>
-        <td>${d.status}</td>
-        <td>${
-          d.status==="Pending"? `<button onclick="handleWithdrawal('${doc.id}',true,${d.coins},'${d.uid}')">Approve</button>
-          <button onclick="handleWithdrawal('${doc.id}',false,${d.coins},'${d.uid}')">Reject</button>`:"-"
-        }</td>
+        <td>${d.email}</td><td>${d.coins}</td><td>${d.upi||d.bank||"-"}</td><td>${d.status}</td>
+        <td>${d.status==="Pending"? `<button onclick="handleWithdrawal('${doc.id}',true,${d.coins},'${d.uid}')">Approve</button>
+        <button onclick="handleWithdrawal('${doc.id}',false,${d.coins},'${d.uid}')">Reject</button>`:"-"}</td>
       </tr>`;
     });
     withdrawTable.innerHTML=html;
@@ -256,21 +281,14 @@ async function handleWithdrawal(id,approve,coins,uid){
 /* RECHARGE */
 function loadRechargeRequests(){
   db.collection("walletRequests").orderBy("time","desc").onSnapshot(snap=>{
-    let html=`<tr>
-      <th>User</th><th>Amount</th><th>UTR Number</th><th>Status</th><th>Action</th>
-    </tr>`;
+    let html=`<tr><th>User</th><th>Amount</th><th>UTR</th><th>Status</th><th>Action</th></tr>`;
     snap.forEach(doc=>{
       const d=doc.data();
       html+=`<tr>
-        <td>${d.email}</td>
-        <td>${d.amount}</td>
-        <td>${d.utr||"-"}</td>
-        <td>${d.status||"Pending"}</td>
-        <td>${
-          d.status==="Approved" || d.status==="Rejected"? "-" :
+        <td>${d.email}</td><td>${d.amount}</td><td>${d.utr||"-"}</td><td>${d.status||"Pending"}</td>
+        <td>${d.status==="Approved"||d.status==="Rejected"? "-" :
           `<button onclick="approveRecharge('${doc.id}',${d.amount},'${d.uid}')">Approve</button>
-           <button onclick="rejectRecharge('${doc.id}')">Reject</button>`
-        }</td>
+          <button onclick="rejectRecharge('${doc.id}')">Reject</button>`}</td>
       </tr>`;
     });
     rechargeTable.innerHTML=html;
@@ -300,6 +318,7 @@ async function updateAdminUpi(){
 
 /* LOGOUT */
 function logout(){ auth.signOut(); }
+
 </script>
 </body>
-</html>
+  </html>
