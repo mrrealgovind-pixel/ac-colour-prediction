@@ -10,28 +10,22 @@
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
 
 <style>
-body{background:#111;color:#fff;font-family:Arial,sans-serif;padding:10px;}
-h2{text-align:center;}
-button,input{padding:10px;border-radius:6px;border:none;margin:5px;font-weight:bold;}
+body{background:#111;color:#fff;font-family:Arial,sans-serif;padding:10px;margin:0;}
+h2{text-align:center;margin-bottom:15px;}
+button,input{padding:10px;border-radius:6px;border:none;margin:5px 0;font-weight:bold;width:100%;}
 .recharge{background:#00e5ff;color:#000;cursor:pointer;}
 .withdraw{background:#ffca28;color:#000;cursor:pointer;}
-input{width:calc(100% - 24px);}
-hr{border:1px solid #333;}
-p{margin:5px 0;}
+input{width:calc(100% - 22px);}
+hr{border:1px solid #333;margin:15px 0;}
+p{margin:5px 0;font-size:16px;}
 #qrCode{margin:10px auto; display:block; width:200px; height:200px; background:#fff; border-radius:8px; padding:10px;}
-.notice-banner{
-  background:#222;
-  border:1px solid #00e5ff;
-  padding:15px;
-  margin-top:20px;
-  border-radius:8px;
-  text-align:center;
-  font-weight:bold;
-  color:#00e5ff;
-}
+.banner{background:#222;color:#00e676;padding:15px;border-radius:8px;text-align:center;margin-top:10px;font-weight:bold;}
+.container{max-width:480px;margin:0 auto;}
 </style>
 </head>
 <body>
+
+<div class="container">
 
 <h2>My Wallet</h2>
 <p>Coins: <span id="coins">0</span></p>
@@ -59,9 +53,8 @@ p{margin:5px 0;}
 
 <hr>
 
-<!-- Banner Instead of History -->
-<div class="notice-banner">
-  Guys, ye suchna hii guyes ye suchna
+<div class="banner">Yahi Suchna: Admin approval ke baad coins wallet me add honge. Pending requests ke liye wait karein.</div>
+
 </div>
 
 <script>
@@ -78,6 +71,7 @@ const db = firebase.firestore();
 let USER_ID = "";
 let USER_EMAIL = "";
 let ADMIN_UPI = "";
+let pendingRequestId = null;
 
 // ================= LOGIN CHECK =================
 auth.onAuthStateChanged(user => {
@@ -111,6 +105,18 @@ async function generateQR(){
   if(!amt) return alert("Enter Amount");
   if(!ADMIN_UPI) return alert("Admin UPI / Mobile not available");
 
+  // Create pending recharge request & store ID
+  const docRef = await db.collection("walletRequests").add({
+    uid: USER_ID,
+    email: USER_EMAIL,
+    amount: amt,
+    utr: "",
+    status: "Pending",
+    time: firebase.firestore.FieldValue.serverTimestamp()
+  });
+
+  pendingRequestId = docRef.id; // Save ID locally
+
   // UPI URL for QR
   let upiUrl = `upi://pay?pa=${ADMIN_UPI}&pn=AC%20Colour%20Admin&am=${amt}&cu=INR&tn=Recharge%20${amt}`;
 
@@ -127,31 +133,22 @@ async function submitUTR(){
   let amt = Number(amount.value);
   if(!utrNum) return alert("Enter UTR Number");
   if(!amt) return alert("Enter Amount");
+  if(!pendingRequestId) return alert("Please generate QR first");
 
-  // Save UTR to the latest pending recharge request
-  const pending = await db.collection("walletRequests")
-    .where("uid","==",USER_ID)
-    .where("status","==","Pending")
-    .orderBy("time","desc")
-    .limit(1)
-    .get();
+  await db.collection("walletRequests").doc(pendingRequestId).update({
+    utr: utrNum,
+    amount: amt,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
 
-  if(!pending.empty){
-    const docId = pending.docs[0].id;
-    await db.collection("walletRequests").doc(docId).update({
-      utr: utrNum,
-      amount: amt,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    alert("UTR submitted. Admin will approve and coins will be added.");
-    utr.value = "";
-    amount.value = "";
-    const canvas = document.getElementById('qrCode');
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-  } else {
-    alert("No pending request found");
-  }
+  alert("UTR submitted. Admin will approve and coins will be added.");
+  utr.value = "";
+  amount.value = "";
+  const canvas = document.getElementById('qrCode');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  pendingRequestId = null; // Reset after submission
 }
 
 // ================= WITHDRAW =================
