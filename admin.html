@@ -22,6 +22,7 @@
     .autoOn{background:#00b0ff;color:#fff;}
     .autoOff{background:#ffab00;color:#000;}
     input[type=text]{width:150px;color:#000;}
+    .slotBox{background:#222;padding:12px;border-radius:10px;margin-top:10px;}
   </style>
 </head>
 <body>
@@ -42,6 +43,23 @@
 <button class="red" onclick="setResult('Red')">RED</button>
 <button class="green" onclick="setResult('Green')">GREEN</button>
 <button class="violet" onclick="setResult('Violet')">VIOLET</button>
+
+<hr>
+
+<h3>🎰 SLOT GAME CONTROL</h3>
+
+<div class="slotBox">
+  <h3>Slot Win/Lose Logic</h3>
+
+  <select id="slotLogic">
+    <option value="40_60">Logic 1: 40% Win / 60% Lose</option>
+    <option value="60_40">Logic 2: 60% Win / 40% Lose</option>
+    <option value="30_70">Logic 3: 30% Win / 70% Lose</option>
+  </select>
+
+  <button onclick="saveSlotLogic()">Save Slot Logic</button>
+  <p id="slotStatus">Loading slot settings...</p>
+</div>
 
 <hr>
 
@@ -101,6 +119,7 @@ auth.onAuthStateChanged(user=>{
     location.href = "index.html";
   } else {
     loadAutoStatus();
+    loadSlotLogic();
     loadUsers();
     loadWithdrawals();
     loadRechargeRequests();
@@ -144,6 +163,37 @@ async function setResult(color){
     timestamp:new Date()
   });
   alert("Manual Result Set: " + color);
+}
+
+/* --------------------- SLOT LOGIC CONTROL --------------------- */
+async function saveSlotLogic(){
+  const logic = document.getElementById("slotLogic").value;
+  let winRate = 0;
+
+  if(logic === "40_60") winRate = 40;
+  if(logic === "60_40") winRate = 60;
+  if(logic === "30_70") winRate = 30;
+
+  await db.collection("slotControl").doc("settings").set({
+    logic,
+    winRate,
+    loseRate: 100 - winRate,
+    updated: new Date()
+  });
+
+  alert("Slot Logic Updated!");
+  loadSlotLogic();
+}
+
+async function loadSlotLogic(){
+  const doc = await db.collection("slotControl").doc("settings").get();
+  if(doc.exists){
+    slotLogic.value = doc.data().logic;
+    slotStatus.innerText = "Current: " + doc.data().logic + 
+      " (" + doc.data().winRate + "% Win / " + doc.data().loseRate + "% Lose)";
+  } else {
+    slotStatus.innerText = "Not Set";
+  }
 }
 
 /* --------------------- USERS LIST --------------------- */
