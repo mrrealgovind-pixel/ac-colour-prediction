@@ -1,272 +1,305 @@
-<script>  
-  
-const firebaseConfig = {  
-  apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",  
-  authDomain: "ac-colour-prediction.firebaseapp.com",  
-  projectId: "ac-colour-prediction",  
-  storageBucket: "ac-colour-prediction.firebasestorage.app",  
-  messagingSenderId: "471938348888",  
-  appId: "1:471938348888:web:ac3fc3eb1939eb7cbe172d",  
-  measurementId: "G-QJ07DWRNYY"  
-};  
-  
-firebase.initializeApp(firebaseConfig);  
-const auth = firebase.auth();  
-const db = firebase.firestore();  
-  
-const ADMIN_EMAIL = "admin@gmail.com";  
-  
-auth.onAuthStateChanged(user=>{  
-  if(!user || user.email !== ADMIN_EMAIL){  
-    alert("Not Authorized");  
-    location.href = "index.html";  
-  } else {  
-    loadAutoStatus();  
-    loadSlotLogic();  
-    loadUsers();  
-    loadWithdrawals();  
-    loadRechargeRequests();  
-    loadAdminUpi();  
-  }  
-});  
-  
-/* AUTO SYSTEM */  
-async function enableAuto(){  
-  const logic = document.getElementById("autoLogic").value;  
-  await db.collection("admin").doc("auto").set({  
-    enabled:true,  
-    logic,  
-    updated:new Date()  
-  });  
-  alert("Auto Result Enabled (" + logic + ")");  
-  loadAutoStatus();  
-}  
-  
-async function disableAuto(){  
-  await db.collection("admin").doc("auto").set({  
-    enabled:false,  
-    updated:new Date()  
-  });  
-  alert("Auto Result Disabled");  
-  loadAutoStatus();  
-}  
-  
-async function loadAutoStatus(){  
-  const doc = await db.collection("admin").doc("auto").get();  
-  if(doc.exists && doc.data().enabled){  
-    autoStatus.innerText = "AUTO RESULT: ENABLED (" + doc.data().logic + ")";  
-  } else {  
-    autoStatus.innerText = "AUTO RESULT: DISABLED";  
-  }  
-}  
-  
-/* MANUAL RESULT */  
-async function setResult(color){  
-  await db.collection("admin").doc("result").set({  
-    color,  
-    mode:"manual",  
-    timestamp:new Date()  
-  });  
-  alert("Manual Result Set: " + color);  
-}  
-  
-/* SLOT LOGIC */  
-async function saveSlotLogic(){  
-  const logic = document.getElementById("slotLogic").value;  
-  let winRate = 0;  
-  
-  if(logic === "40_60") winRate = 40;  
-  if(logic === "60_40") winRate = 60;  
-  if(logic === "30_70") winRate = 30;  
-  
-  await db.collection("slotControl").doc("settings").set({  
-    logic,  
-    winRate,  
-    loseRate: 100 - winRate,  
-    updated: new Date()  
-  });  
-  
-  alert("Slot Logic Updated!");  
-  loadSlotLogic();  
-}  
-  
-async function loadSlotLogic(){  
-  const doc = await db.collection("slotControl").doc("settings").get();  
-  if(doc.exists){  
-    slotLogic.value = doc.data().logic;  
-    slotStatus.innerText =  
-      "Current: " + doc.data().logic +  
-      " (" + doc.data().winRate + "% Win / " + doc.data().loseRate + "% Lose)";  
-  } else {  
-    slotStatus.innerText = "Not Set";  
-  }  
-}  
-  
-/* USERS LIST FIXED */  
-function loadUsers(){  
-  db.collection("users").onSnapshot(snap=>{  
-    let html = `<tr>  
-      <th>Email</th><th>Coins</th><th>UPI</th><th>Bank</th>  
-      <th>Account</th><th>IFSC</th><th>Add Coins</th>  
-    </tr>`;  
-  
-    snap.forEach(doc=>{  
-      const d = doc.data();  
-  
-      html += `<tr>  
-        <td>${d.email||""}</td>  
-        <td>${d.coins||0}</td>  
-        <td>${d.upi||"-"}</td>  
-        <td>${d.bank||"-"}</td>  
-        <td>${d.account||"-"}</td>  
-        <td>${d.ifsc||"-"}</td>  
-        <td>  
-          <button onclick="addCoins('${doc.id}',100)">+100</button>  
-          <button onclick="addCoins('${doc.id}',500)">+500</button>  
-        </td>  
-      </tr>`;  
-    });  
-  
-    usersTable.innerHTML = html;  
-  });  
-}  
-  
-async function addCoins(uid, amount){  
-  await db.collection("users").doc(uid).update({  
-    coins: firebase.firestore.FieldValue.increment(amount)  
-  });  
-  
-  await db.collection("transactions").add({  
-    uid,  
-    type:"Admin Add Coins",  
-    coins: amount,  
-    time:new Date()  
-  });  
-  
-  alert("Coins Added");  
-}  
-  
-/* WITHDRAWALS FIXED */  
-function loadWithdrawals(){  
-  db.collection("withdrawals")  
-    .orderBy("requestedAt","desc")  
-    .onSnapshot(snap=>{  
-  
-      let html = `<tr>  
-        <th>User</th><th>Coins</th><th>UPI/Bank</th>  
-        <th>Status</th><th>Action</th>  
-      </tr>`;  
-  
-      snap.forEach(doc=>{  
-        const d = doc.data();  
-  
-        html += `<tr>  
-          <td>${d.email}</td>  
-          <td>${d.coins}</td>  
-          <td>${d.upi || d.bank || "-"}</td>  
-          <td>${d.status}</td>  
-          <td>${  
-            d.status==="Pending"  
-            ? `<button class="approve" onclick="handleWithdrawal('${doc.id}',true,${d.coins},'${d.uid}')">Approve</button>  
-               <button class="reject" onclick="handleWithdrawal('${doc.id}',false,${d.coins},'${d.uid}')">Reject</button>`  
-            : "-"  
-          }</td>  
-        </tr>`;  
-      });  
-  
-      withdrawTable.innerHTML = html;  
-    });  
-}  
-  
-async function handleWithdrawal(id, approve, coins, uid){  
-  const ref = db.collection("users").doc(uid);  
-  const user = await ref.get();  
-  
-  if(approve){  
-    if((user.data().coins||0) < coins){  
-      return alert("User does not have enough coins!");  
-    }  
-  
-    await ref.update({coins: user.data().coins - coins});  
-    await db.collection("withdrawals").doc(id).update({status:"Approved"});  
-  } else {  
-    await db.collection("withdrawals").doc(id).update({status:"Rejected"});  
-  }  
-  
-  alert(approve ? "Approved" : "Rejected");  
-}  
-  
-/* RECHARGE FIXED */  
-function loadRechargeRequests(){  
-  db.collection("walletRequests")  
-    .orderBy("time","desc")  
-    .onSnapshot(snap=>{  
-  
-      let html = `<tr>  
-        <th>User</th>  
-        <th>Amount</th>  
-        <th>UTR Number</th>  
-        <th>Status</th>  
-        <th>Action</th>  
-      </tr>`;  
-  
-      snap.forEach(doc=>{  
-        const d = doc.data();  
-  
-        html += `<tr>  
-          <td>${d.email}</td>  
-          <td>${d.amount}</td>  
-          <td>${d.utr || "-"}</td>  
-          <td>${d.status || "Pending"}</td>  
-          <td>${  
-            d.status==="Approved" || d.status==="Rejected"  
-            ? "-"  
-            : `<button class="approve" onclick="approveRecharge('${doc.id}',${d.amount},'${d.uid}')">Approve</button>  
-               <button class="reject" onclick="rejectRecharge('${doc.id}')">Reject</button>`  
-          }</td>  
-        </tr>`;  
-      });  
-  
-      rechargeTable.innerHTML = html;  
-    });  
-}  
-  
-async function approveRecharge(id, amount, uid){  
-  await db.collection("users").doc(uid).update({  
-    coins: firebase.firestore.FieldValue.increment(Number(amount))  
-  });  
-  
-  await db.collection("walletRequests").doc(id).update({  
-    status:"Approved"  
-  });  
-  
-  alert("Recharge Approved!");  
-}  
-  
-async function rejectRecharge(id){  
-  await db.collection("walletRequests").doc(id).update({  
-    status:"Rejected"  
-  });  
-  alert("Recharge Rejected!");  
-}  
-  
-/* ADMIN UPI */  
-async function loadAdminUpi(){  
-  const doc = await db.collection("admin").doc("upi").get();  
-  if(doc.exists){ adminUpi.value = doc.data().upi; }  
-}  
-  
-async function updateAdminUpi(){  
-  const upi = adminUpi.value.trim();  
-  if(!upi) return alert("Enter valid UPI ID");  
-  
-  await db.collection("admin").doc("upi").set({upi});  
-  alert("UPI Updated");  
-}  
-  
-/* LOGOUT */  
-function logout(){  
-  auth.signOut();  
-}  
-  
-  </script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Panel</title>
+<style>
+body{font-family:sans-serif;margin:20px;}
+table{width:100%;border-collapse:collapse;margin-top:10px;}
+th,td{border:1px solid #ccc;padding:5px;text-align:center;}
+button{margin:2px;}
+section{margin-bottom:30px;}
+</style>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+<h2>Admin Panel</h2>
+
+<!-- AUTO RESULT -->
+<section>
+<h3>Auto Result Control</h3>
+<div id="autoStatus">Loading...</div>
+<select id="autoLogic">
+  <option value="60_40">60% Win / 40% Lose</option>
+  <option value="40_60">40% Win / 60% Lose</option>
+</select>
+<button onclick="enableAuto()">Enable Auto</button>
+<button onclick="disableAuto()">Disable Auto</button>
+</section>
+
+<!-- MANUAL RESULT -->
+<section>
+<h3>Manual Result</h3>
+<button onclick="setResult('RED')">RED</button>
+<button onclick="setResult('GREEN')">GREEN</button>
+<button onclick="setResult('BLUE')">BLUE</button>
+</section>
+
+<!-- SLOT MACHINE -->
+<section>
+<h3>Slot Machine Logic</h3>
+<div id="slotStatus">Loading...</div>
+<select id="slotLogic">
+  <option value="60_40">60% Win / 40% Lose</option>
+  <option value="70_30">70% Lose / 30% Win</option>
+  <option value="40_60">60% Lose / 40% Win</option>
+</select>
+<button onclick="saveSlotLogic()">Save</button>
+</section>
+
+<!-- USERS LIST -->
+<section>
+<h3>All Users</h3>
+<table id="usersTable"><tr><td>Loading...</td></tr></table>
+</section>
+
+<!-- WITHDRAWALS -->
+<section>
+<h3>Withdrawals</h3>
+<table id="withdrawTable"><tr><td>Loading...</td></tr></table>
+</section>
+
+<!-- RECHARGE REQUESTS -->
+<section>
+<h3>Recharge Requests</h3>
+<table id="rechargeTable"><tr><td>Loading...</td></tr></table>
+</section>
+
+<!-- ADMIN UPI -->
+<section>
+<h3>Admin UPI</h3>
+<input type="text" id="adminUpi" placeholder="Enter UPI"/>
+<button onclick="updateAdminUpi()">Update UPI</button>
+</section>
+
+<button onclick="logout()">Logout</button>
+
+<script>
+// Firebase Config
+const firebaseConfig = {
+  apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
+  authDomain: "ac-colour-prediction.firebaseapp.com",
+  projectId: "ac-colour-prediction",
+  storageBucket: "ac-colour-prediction.firebasestorage.app",
+  messagingSenderId: "471938348888",
+  appId: "1:471938348888:web:ac3fc3eb1939eb7cbe172d",
+  measurementId: "G-QJ07DWRNYY"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const ADMIN_EMAIL = "admin@gmail.com";
+
+// DOM elements
+const usersTable = document.getElementById("usersTable");
+const withdrawTable = document.getElementById("withdrawTable");
+const rechargeTable = document.getElementById("rechargeTable");
+const autoStatus = document.getElementById("autoStatus");
+const slotStatus = document.getElementById("slotStatus");
+const slotLogic = document.getElementById("slotLogic");
+const adminUpi = document.getElementById("adminUpi");
+
+// Auth
+auth.onAuthStateChanged(user=>{
+  if(!user || user.email !== ADMIN_EMAIL){
+    alert("Not Authorized");
+    location.href = "index.html";
+  } else {
+    loadAutoStatus();
+    loadSlotLogicData();
+    loadUsers();
+    loadWithdrawals();
+    loadRechargeRequests();
+    loadAdminUpi();
+  }
+});
+
+/* AUTO SYSTEM */
+async function enableAuto(){
+  const logic = autoLogic.value;
+  await db.collection("admin").doc("auto").set({
+    enabled:true,
+    logic,
+    updated:new Date()
+  });
+  alert("Auto Enabled ("+logic+")");
+  loadAutoStatus();
+}
+async function disableAuto(){
+  await db.collection("admin").doc("auto").set({
+    enabled:false,
+    updated:new Date()
+  });
+  alert("Auto Disabled");
+  loadAutoStatus();
+}
+async function loadAutoStatus(){
+  const doc = await db.collection("admin").doc("auto").get();
+  if(doc.exists && doc.data().enabled){
+    autoStatus.innerText = "AUTO: ENABLED (" + doc.data().logic + ")";
+  } else {
+    autoStatus.innerText = "AUTO: DISABLED";
+  }
+}
+
+/* MANUAL RESULT */
+async function setResult(color){
+  await db.collection("admin").doc("result").set({
+    color,
+    mode:"manual",
+    timestamp:new Date()
+  });
+  alert("Manual Result: " + color);
+}
+
+/* SLOT LOGIC */
+async function saveSlotLogic(){
+  const logic = slotLogic.value;
+  let winRate = 0;
+  let loseRate = 0;
+
+  if(logic==="60_40"){ winRate=60; loseRate=40; }
+  if(logic==="70_30"){ winRate=30; loseRate=70; }
+  if(logic==="40_60"){ winRate=40; loseRate=60; }
+
+  await db.collection("slotControl").doc("settings").set({
+    logic,
+    winRate,
+    loseRate,
+    updated:new Date()
+  });
+  alert("Slot Logic Updated!");
+  loadSlotLogicData();
+}
+
+async function loadSlotLogicData(){
+  const doc = await db.collection("slotControl").doc("settings").get();
+  if(doc.exists){
+    slotLogic.value = doc.data().logic;
+    slotStatus.innerText = "Current: "+doc.data().logic+" ("+doc.data().winRate+"% Win / "+doc.data().loseRate+"% Lose)";
+  } else {
+    slotStatus.innerText = "Not Set";
+  }
+}
+
+/* USERS */
+function loadUsers(){
+  db.collection("users").onSnapshot(snap=>{
+    let html = `<tr>
+      <th>Email</th><th>Coins</th><th>UPI</th><th>Bank</th>
+      <th>Account</th><th>IFSC</th><th>Add Coins</th>
+    </tr>`;
+    snap.forEach(doc=>{
+      const d = doc.data();
+      html+=`<tr>
+        <td>${d.email||"undefined"}</td>
+        <td>${d.coins||0}</td>
+        <td>${d.upi||"-"}</td>
+        <td>${d.bank||"-"}</td>
+        <td>${d.account||"-"}</td>
+        <td>${d.ifsc||"-"}</td>
+        <td>
+          <button onclick="addCoins('${doc.id}',100)">+100</button>
+          <button onclick="addCoins('${doc.id}',500)">+500</button>
+        </td>
+      </tr>`;
+    });
+    usersTable.innerHTML = html;
+  });
+}
+async function addCoins(uid, amt){
+  await db.collection("users").doc(uid).update({coins: firebase.firestore.FieldValue.increment(amt)});
+  await db.collection("transactions").add({uid,type:"Admin Add Coins",coins:amt,time:new Date()});
+  alert("Coins Added");
+}
+
+/* WITHDRAWALS */
+function loadWithdrawals(){
+  db.collection("withdrawals").orderBy("requestedAt","desc").onSnapshot(snap=>{
+    let html=`<tr>
+      <th>User</th><th>Coins</th><th>UPI/Bank</th><th>Status</th><th>Action</th>
+    </tr>`;
+    snap.forEach(doc=>{
+      const d=doc.data();
+      html+=`<tr>
+        <td>${d.email}</td>
+        <td>${d.coins}</td>
+        <td>${d.upi||d.bank||"-"}</td>
+        <td>${d.status}</td>
+        <td>${
+          d.status==="Pending"? `<button onclick="handleWithdrawal('${doc.id}',true,${d.coins},'${d.uid}')">Approve</button>
+          <button onclick="handleWithdrawal('${doc.id}',false,${d.coins},'${d.uid}')">Reject</button>`:"-"
+        }</td>
+      </tr>`;
+    });
+    withdrawTable.innerHTML=html;
+  });
+}
+async function handleWithdrawal(id,approve,coins,uid){
+  const ref=db.collection("users").doc(uid);
+  const user=await ref.get();
+  if(approve){
+    if((user.data().coins||0)<coins){ return alert("Not enough coins"); }
+    await ref.update({coins:user.data().coins-coins});
+    await db.collection("withdrawals").doc(id).update({status:"Approved"});
+  } else {
+    await db.collection("withdrawals").doc(id).update({status:"Rejected"});
+  }
+  alert(approve?"Approved":"Rejected");
+}
+
+/* RECHARGE */
+function loadRechargeRequests(){
+  db.collection("walletRequests").orderBy("time","desc").onSnapshot(snap=>{
+    let html=`<tr>
+      <th>User</th><th>Amount</th><th>UTR Number</th><th>Status</th><th>Action</th>
+    </tr>`;
+    snap.forEach(doc=>{
+      const d=doc.data();
+      html+=`<tr>
+        <td>${d.email}</td>
+        <td>${d.amount}</td>
+        <td>${d.utr||"-"}</td>
+        <td>${d.status||"Pending"}</td>
+        <td>${
+          d.status==="Approved" || d.status==="Rejected"? "-" :
+          `<button onclick="approveRecharge('${doc.id}',${d.amount},'${d.uid}')">Approve</button>
+           <button onclick="rejectRecharge('${doc.id}')">Reject</button>`
+        }</td>
+      </tr>`;
+    });
+    rechargeTable.innerHTML=html;
+  });
+}
+async function approveRecharge(id,amt,uid){
+  await db.collection("users").doc(uid).update({coins:firebase.firestore.FieldValue.increment(Number(amt))});
+  await db.collection("walletRequests").doc(id).update({status:"Approved"});
+  alert("Recharge Approved");
+}
+async function rejectRecharge(id){
+  await db.collection("walletRequests").doc(id).update({status:"Rejected"});
+  alert("Recharge Rejected");
+}
+
+/* ADMIN UPI */
+async function loadAdminUpi(){
+  const doc=await db.collection("admin").doc("upi").get();
+  if(doc.exists) adminUpi.value=doc.data().upi;
+}
+async function updateAdminUpi(){
+  const upi=adminUpi.value.trim();
+  if(!upi) return alert("Enter valid UPI");
+  await db.collection("admin").doc("upi").set({upi});
+  alert("UPI Updated");
+}
+
+/* LOGOUT */
+function logout(){ auth.signOut(); }
+</script>
+</body>
+</html>
