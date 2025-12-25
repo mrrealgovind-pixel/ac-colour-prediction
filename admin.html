@@ -1,86 +1,3 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Admin Panel</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
-  <style>
-    body{font-family:Arial;margin:20px;}
-    table{width:100%;border-collapse:collapse;margin-top:15px;}
-    th,td{border:1px solid #ccc;padding:8px;text-align:center;}
-    button{padding:8px 12px;margin:2px;}
-    .box{border:1px solid #ddd;padding:15px;margin-top:20px;}
-  </style>
-</head>
-
-<body>
-
-<h2>ADMIN PANEL</h2>
-<button onclick="logout()">Logout</button>
-
-<!-- AUTO SYSTEM -->
-<div class="box">
-  <h3>AUTO RESULT SYSTEM</h3>
-  <select id="autoLogic">
-    <option value="RED">RED</option>
-    <option value="GREEN">GREEN</option>
-    <option value="BLUE">BLUE</option>
-  </select>
-  <button onclick="enableAuto()">Enable</button>
-  <button onclick="disableAuto()">Disable</button>
-  <p id="autoStatus"></p>
-</div>
-
-<!-- MANUAL RESULT -->
-<div class="box">
-  <h3>MANUAL RESULT</h3>
-  <button onclick="setResult('RED')">RED</button>
-  <button onclick="setResult('GREEN')">GREEN</button>
-  <button onclick="setResult('BLUE')">BLUE</button>
-</div>
-
-<!-- SLOT LOGIC -->
-<div class="box">
-  <h3>SLOT LOGIC</h3>
-  <select id="slotLogic">
-    <option value="40_60">40% Win / 60% Lose</option>
-    <option value="60_40">60% Win / 40% Lose</option>
-    <option value="30_70">30% Win / 70% Lose</option>
-  </select>
-  <button onclick="saveSlotLogic()">Save</button>
-  <p id="slotStatus"></p>
-</div>
-
-<!-- USERS -->
-<div class="box">
-  <h3>USERS LIST</h3>
-  <table id="usersTable"></table>
-</div>
-
-<!-- WITHDRAWALS -->
-<div class="box">
-  <h3>WITHDRAW REQUESTS</h3>
-  <table id="withdrawTable"></table>
-</div>
-
-<!-- RECHARGE -->
-<div class="box">
-  <h3>RECHARGE REQUESTS</h3>
-  <table id="rechargeTable"></table>
-</div>
-
-<!-- ADMIN UPI -->
-<div class="box">
-  <h3>ADMIN UPI</h3>
-  <input id="adminUpi" placeholder="Enter UPI">
-  <button onclick="updateAdminUpi()">Save</button>
-</div>
-
 <script>
 
 const firebaseConfig = {
@@ -185,7 +102,7 @@ async function loadSlotLogic(){
   }
 }
 
-/* USERS LIST */
+/* USERS LIST FIXED */
 function loadUsers(){
   db.collection("users").onSnapshot(snap=>{
     let html = `<tr>
@@ -229,7 +146,7 @@ async function addCoins(uid, amount){
   alert("Coins Added");
 }
 
-/* WITHDRAWALS */
+/* WITHDRAWALS FIXED */
 function loadWithdrawals(){
   db.collection("withdrawals")
     .orderBy("requestedAt","desc")
@@ -279,7 +196,7 @@ async function handleWithdrawal(id, approve, coins, uid){
   alert(approve ? "Approved" : "Rejected");
 }
 
-/* RECHARGE */
+/* RECHARGE FIXED */
 function loadRechargeRequests(){
   db.collection("walletRequests")
     .orderBy("time","desc")
@@ -352,7 +269,4 @@ function logout(){
   auth.signOut();
 }
 
-</script>
-
-</body>
-  </html>
+    </script>
