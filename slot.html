@@ -112,39 +112,61 @@ async function spin(){
         bot: document.getElementById("payout_bot")
     };
 
-    // Reset payouts
     payoutEls.top.innerText=0; payoutEls.mid.innerText=0; payoutEls.bot.innerText=0;
 
     document.getElementById("spinSound").play();
     if(navigator.vibrate) navigator.vibrate(100);
 
-    // Randomize visuals for all 3 lines
-    [top, mid, bot].forEach(line=>{
-        line.forEach(r=>{
-            r.style.transform="translateY(-100%)";
-            r.innerHTML=symbols[Math.floor(Math.random()*symbols.length)];
-        });
+    // RANDOMIZE MID (unchanged)
+    mid.forEach(r=>{
+        r.style.transform="translateY(-100%)";
+        r.innerHTML=symbols[Math.floor(Math.random()*symbols.length)];
     });
 
-    // Controlled bottom line (admin logic)
-    let rand=Math.random()*100;
+    // ---- CONTROLLED TOP LINE ----
+    let randTop = Math.random()*100;
+    let t1,t2,t3;
+
+    if(randTop < jackpotRate){ 
+        t1=t2=t3="7️⃣"; 
+    }
+    else if(randTop < winRate + jackpotRate){
+        t1=t2=symbols[Math.floor(Math.random()*symbols.length)];
+        t3=symbols[Math.floor(Math.random()*symbols.length)];
+    }
+    else{
+        t1=symbols[Math.floor(Math.random()*symbols.length)];
+        t2=symbols[Math.floor(Math.random()*symbols.length)];
+        t3=symbols[Math.floor(Math.random()*symbols.length)];
+    }
+
+    top[0].innerHTML=t1;
+    top[1].innerHTML=t2;
+    top[2].innerHTML=t3;
+
+
+    // ---- CONTROLLED BOTTOM LINE (same as before) ----
+    let rand = Math.random()*100;
     let s1,s2,s3;
-    if(rand<jackpotRate){ s1=s2=s3="7️⃣"; }
-    else if(rand<winRate+jackpotRate){ 
+
+    if(rand < jackpotRate){
+        s1=s2=s3="7️⃣";
+    }
+    else if(rand < winRate + jackpotRate){
         s1=s2=symbols[Math.floor(Math.random()*symbols.length)];
         s3=symbols[Math.floor(Math.random()*symbols.length)];
     }
-    else{ 
+    else{
         s1=symbols[Math.floor(Math.random()*symbols.length)];
         s2=symbols[Math.floor(Math.random()*symbols.length)];
         s3=symbols[Math.floor(Math.random()*symbols.length)];
     }
 
-    bot[0].innerHTML=s1; 
-    bot[1].innerHTML=s2; 
+    bot[0].innerHTML=s1;
+    bot[1].innerHTML=s2;
     bot[2].innerHTML=s3;
 
-    // Slide down animation
+    // Slide Animation
     [top, mid, bot].flat().forEach(r=>r.style.transform="translateY(0)");
 
     setTimeout(()=>{
@@ -155,36 +177,24 @@ async function spin(){
             let line = lines[key];
             let lineWin=0;
 
-            // 3 symbol match
             if(line[0].innerHTML===line[1].innerHTML && line[1].innerHTML===line[2].innerHTML){
+                if(key==="top") lineWin=bet*10;
+                else if(key==="mid") lineWin=bet*4;
+                else if(key==="bot") lineWin=bet*3;
 
-                // ✅ YOUR JACKPOT SYSTEM
-                if(key==="top"){ 
-                    lineWin = bet * 10;   // Top 10x
-                } 
-                else if(key==="mid"){ 
-                    lineWin = bet * 4;    // Mid 4x
-                } 
-                else if(key==="bot"){ 
-                    lineWin = bet * 3;    // Bottom 3x
-                }
-
-                win += lineWin;
-                message="✨ Win +"+win;
-
+                win=lineWin;
+                message="✨ Win +"+lineWin;
                 line.forEach(r=>r.classList.add("win-glow"));
                 document.getElementById("winSound").play();
                 if(navigator.vibrate) navigator.vibrate([150,50,150]);
             }
 
-            payoutEls[key].innerText = lineWin;
+            payoutEls[key].innerText=lineWin;
         }
 
-        coins += win;
-        updateCoins();
-        document.getElementById("result").innerText = message;
+        coins+=win; updateCoins();
+        document.getElementById("result").innerText=message;
 
-        // Save transaction
         db.collection("transactions").add({
             uid, game:"slot", bet, win,
             top: top.map(r=>r.innerHTML),
@@ -198,4 +208,4 @@ async function spin(){
 }
 </script>
 </body>
-                </html>
+    </html>
