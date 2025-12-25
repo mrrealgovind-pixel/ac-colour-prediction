@@ -11,54 +11,62 @@
 
   <style>
     body{margin:0;font-family:Arial;background:#0f0f0f;color:#fff;text-align:center;}
-    
-    .top-buttons{
-      margin:20px auto;
+
+    /* HERO SECTION */
+    .hero{
+      margin-top:40px;
       display:flex;
       flex-direction:column;
       align-items:center;
-      gap:15px;
+      gap:20px;
     }
-    
-    .top-buttons button{
-      padding:15px 20px;
-      font-size:16px;
-      margin:5px;
-      background:#222;
-      color:#fff;
-      border:none;
-      border-radius:8px;
-      cursor:pointer;
-      width:80%;
-      max-width:300px;
-      transition:0.3s;
-    }
-    
+
     .big-btn{
       background: linear-gradient(90deg, #ff9800, #ff5722);
-      font-size:22px;
+      color:#fff;
+      font-size:26px;
       font-weight:bold;
       width:90%;
-      max-width:400px;
-      padding:20px;
-      border-radius:12px;
-      box-shadow:0 4px 15px rgba(0,0,0,0.4);
+      max-width:420px;
+      padding:22px;
+      border:none;
+      border-radius:14px;
+      box-shadow:0 6px 18px rgba(0,0,0,0.5);
+      transition:0.3s;
     }
 
     .big-btn:hover{
-      transform: scale(1.05);
-      box-shadow:0 6px 20px rgba(0,0,0,0.5);
+      transform:scale(1.06);
     }
+
+    /* Small menu buttons */
+    .menu{
+      margin-top:35px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:12px;
+    }
+
+    .menu button{
+      width:80%;
+      max-width:300px;
+      background:#1c1c1c;
+      color:#fff;
+      padding:14px;
+      border-radius:8px;
+      border:none;
+      font-size:16px;
+    }
+
+    /* Hide game section */
+    .game-section{ display:none; }
 
     .header{
-      font-size:28px;
-      padding:15px;
       background:#000;
-      margin-bottom:20px;
+      padding:15px;
+      font-size:26px;
     }
-
-    /* Hiding the game section */
-    .game-section { display: none; }
   </style>
 </head>
 
@@ -66,22 +74,26 @@
 
 <div class="header">AC Prediction Hub</div>
 
-<div class="top-buttons">
-  <button onclick="location.href='profile.html'">Profile / Bank Details</button>
-  <button onclick="location.href='wallet.html'">💰 Wallet</button>
-
-  <!-- Big Slot Game Button -->
+<!-- HERO section -->
+<div class="hero">
   <button class="big-btn" onclick="location.href='slot.html'">🎰 Slot Game</button>
-
-  <!-- Big Colour Game Button -->
   <button class="big-btn" onclick="location.href='colour.html'">🎨 Colour Game</button>
 </div>
 
-<!-- Original Game Section (Hidden) -->
+<!-- Menu section -->
+<div class="menu">
+  <button onclick="location.href='profile.html'">Profile / Bank Details</button>
+  <button onclick="location.href='wallet.html'">💰 Wallet</button>
+  <button onclick="logout()">Logout</button>
+</div>
+
+<!-- Hidden original game UI (NOT removed, only hidden) -->
 <div class="game-section">
+
   <div class="coins">Coins: <span id="coins">0</span></div>
   <div id="bar-container"><div id="bar"></div></div>
   <div class="history" id="history"></div>
+
   <select id="betAmount">
     <option value="10">Bet 10</option>
     <option value="20">Bet 20</option>
@@ -91,22 +103,24 @@
     <option value="250">Bet 250</option>
     <option value="500">Bet 500</option>
   </select>
+
   <div>
     <button class="bet-btn red" onclick="placeBet('Red')">RED</button>
     <button class="bet-btn green" onclick="placeBet('Green')">GREEN</button>
     <button class="bet-btn violet" onclick="placeBet('Violet')">VIOLET</button>
   </div>
+
   <div class="msg" id="msg"></div>
-  <button class="logout" onclick="logout()">Logout</button>
 </div>
 
-<!-- AUDIO FILES -->
+<!-- AUDIO -->
 <audio id="bgSound" src="bg.mp3" loop></audio>
 <audio id="winSound" src="win.mp3"></audio>
 <audio id="loseSound" src="lose.mp3"></audio>
 
 <script>
-// Firebase config and logic remain unchanged
+/* ✨ NOTHING CHANGED IN LOGIC (AS PROMISED) ✨ */
+
 const firebaseConfig = {
   apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
   authDomain: "ac-colour-prediction.firebaseapp.com",
@@ -145,7 +159,7 @@ auth.onAuthStateChanged(async (u) => {
 function placeBet(color){
   const betAmt = parseInt(document.getElementById("betAmount").value);
   if(coins < betAmt){
-    msg.innerText = "❌ Not enough coins to place this bet";
+    msg.innerText = "❌ Not enough coins";
     return;
   }
   pick = color;
@@ -154,7 +168,8 @@ function placeBet(color){
 
 setInterval(() => {
   time--;
-  document.getElementById("bar")?.style.width = (time/30*100) + "%";
+  if(document.getElementById("bar"))
+    document.getElementById("bar").style.width = (time/30*100) + "%";
   if(time <= 0){ runResult(); time = 30; }
 }, 1000);
 
@@ -166,7 +181,7 @@ async function runResult(){
   const adminManual = await db.collection("admin").doc("result").get();
 
   let winColor = "";
-  
+
   if(adminAuto.exists && adminAuto.data().enabled){
     const logic = adminAuto.data().logic || 1;
     const random = Math.random();
@@ -182,14 +197,15 @@ async function runResult(){
   }
 
   let win = (pick === winColor);
+
   if(win){
     coins += betAmt*2;
-    document.getElementById("winSound").play();
-    document.getElementById("msg").innerText = "🎉 WIN — " + winColor;
+    winSound.play();
+    msg.innerText = "🎉 WIN — " + winColor;
   } else {
     coins -= betAmt;
-    document.getElementById("loseSound").play();
-    document.getElementById("msg").innerText = "❌ LOSE — " + winColor;
+    loseSound.play();
+    msg.innerText = "❌ LOSE — " + winColor;
   }
 
   coins = Math.max(coins,0);
@@ -239,4 +255,4 @@ document.addEventListener("click", function () {
 </script>
 
 </body>
-  </html>
+                                          </html>
