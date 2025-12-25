@@ -3,40 +3,34 @@
 <head>
 <title>Wallet - AC Colour Prediction</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
 
 <style>
-body{background:#111;color:#fff;font-family:Arial,sans-serif;padding:10px;margin:0;}
-h2{text-align:center;margin-bottom:15px;}
+body{background:#111;color:#fff;font-family:Arial,sans-serif;padding:10px;}
+h2{text-align:center;}
 button,input{padding:10px;border-radius:6px;border:none;margin:5px 0;font-weight:bold;width:100%;}
-.recharge{background:#00e5ff;color:#000;cursor:pointer;}
-.withdraw{background:#ffca28;color:#000;cursor:pointer;}
-input{width:calc(100% - 22px);}
-hr{border:1px solid #333;margin:15px 0;}
-p{margin:5px 0;font-size:16px;}
+button{cursor:pointer;}
+.recharge{background:#00e5ff;color:#000;}
+.withdraw{background:#ffca28;color:#000;}
+input{width:calc(100% - 20px);}
 #qrCode{margin:10px auto; display:block; width:200px; height:200px; background:#fff; border-radius:8px; padding:10px;}
-.banner{background:#222;color:#00e676;padding:15px;border-radius:8px;text-align:center;margin-top:10px;font-weight:bold;}
-.container{max-width:480px;margin:0 auto;}
+.banner{background:#00e676;color:#000;text-align:center;padding:10px;border-radius:8px;margin:10px 0;font-weight:bold;}
 </style>
 </head>
 <body>
 
-<div class="container">
-
 <h2>My Wallet</h2>
 <p>Coins: <span id="coins">0</span></p>
 
-<hr>
-
+<section>
 <h3>Admin UPI / Mobile</h3>
-<p id="adminUpi" style="font-size:18px;color:#00e676;">Loading...</p>
+<p id="adminUpi" class="banner">Loading...</p>
+</section>
 
-<hr>
-
+<section>
 <h3>Add Coins</h3>
 <input type="number" id="amount" placeholder="Enter Amount"><br>
 <button class="recharge" onclick="generateQR()">Generate QR</button>
@@ -44,34 +38,34 @@ p{margin:5px 0;font-size:16px;}
 <canvas id="qrCode"></canvas>
 <input type="text" id="utr" placeholder="Enter UTR Number after payment"><br>
 <button class="recharge" onclick="submitUTR()">Submit UTR</button>
+</section>
 
-<hr>
-
+<section>
 <h3>Withdrawal</h3>
 <input type="number" id="wAmount" placeholder="Enter Withdrawal Amount">
 <button class="withdraw" onclick="withdraw()">Withdraw</button>
+</section>
 
-<hr>
-
-<div class="banner">Yahi Suchna: Admin approval ke baad coins wallet me add honge. Pending requests ke liye wait karein.</div>
-
-</div>
+<section>
+<p class="banner">All history records will be handled by admin. You will be notified after approval.</p>
+</section>
 
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyAPFM1XnrX1A4cwQPCAkZ4sTMmnwORjx0A",
   authDomain: "ac-colour-prediction.firebaseapp.com",
   projectId: "ac-colour-prediction",
+  storageBucket: "ac-colour-prediction.firebasestorage.app",
+  messagingSenderId: "471938348888",
+  appId: "1:471938348888:web:ac3fc3eb1939eb7cbe172d",
 };
 firebase.initializeApp(firebaseConfig);
-
 const auth = firebase.auth();
 const db = firebase.firestore();
 
 let USER_ID = "";
 let USER_EMAIL = "";
 let ADMIN_UPI = "";
-let pendingRequestId = null;
 
 // ================= LOGIN CHECK =================
 auth.onAuthStateChanged(user => {
@@ -105,7 +99,7 @@ async function generateQR(){
   if(!amt) return alert("Enter Amount");
   if(!ADMIN_UPI) return alert("Admin UPI / Mobile not available");
 
-  // Create pending recharge request & store ID
+  // Create pending recharge request in Firestore
   const docRef = await db.collection("walletRequests").add({
     uid: USER_ID,
     email: USER_EMAIL,
@@ -115,7 +109,8 @@ async function generateQR(){
     time: firebase.firestore.FieldValue.serverTimestamp()
   });
 
-  pendingRequestId = docRef.id; // Save ID locally
+  // Save the docId to input for UTR submit
+  document.getElementById("utr").dataset.docId = docRef.id;
 
   // UPI URL for QR
   let upiUrl = `upi://pay?pa=${ADMIN_UPI}&pn=AC%20Colour%20Admin&am=${amt}&cu=INR&tn=Recharge%20${amt}`;
@@ -125,30 +120,23 @@ async function generateQR(){
   QRCode.toCanvas(canvas, upiUrl, { width: 200 }, function (error) {
     if (error) console.error(error);
   });
+  alert("QR Generated. Scan and complete payment, then submit UTR.");
 }
 
 // ================= SUBMIT UTR =================
 async function submitUTR(){
   let utrNum = utr.value.trim();
-  let amt = Number(amount.value);
   if(!utrNum) return alert("Enter UTR Number");
-  if(!amt) return alert("Enter Amount");
-  if(!pendingRequestId) return alert("Please generate QR first");
 
-  await db.collection("walletRequests").doc(pendingRequestId).update({
-    utr: utrNum,
-    amount: amt,
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-  });
+  const docId = document.getElementById("utr").dataset.docId;
+  if(!docId) return alert("Please generate QR first!");
 
-  alert("UTR submitted. Admin will approve and coins will be added.");
+  await db.collection("walletRequests").doc(docId).update({utr: utrNum});
+  alert("UTR submitted. Admin will approve your recharge.");
+  
   utr.value = "";
   amount.value = "";
-  const canvas = document.getElementById('qrCode');
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  pendingRequestId = null; // Reset after submission
+  document.getElementById('qrCode').getContext('2d').clearRect(0,0,200,200);
 }
 
 // ================= WITHDRAW =================
