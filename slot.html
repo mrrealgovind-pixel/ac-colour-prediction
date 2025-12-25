@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html>
-<head>
-<title>Slot Machine - JILI 3-Line</title>
+<head> <title>Slot Machine - JILI 3-Line</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -16,7 +15,15 @@ h2 {margin-top:20px; color:gold; text-shadow:0 0 10px gold; font-size:30px;}
 .slot-box {width:92%;margin:auto;background:linear-gradient(145deg,#1b1b1b,#0a0a0a);padding:20px;border-radius:20px;border:3px solid gold;box-shadow:0 0 25px rgba(255,215,0,0.4);margin-top:20px;}
 .reels {display:flex; justify-content:space-around; flex-direction:column; gap:5px;}
 .row {display:flex; justify-content:space-around; overflow:hidden; height:90px;}
-.reel {width:90px;height:90px;background:black;border:3px solid gold;border-radius:12px; font-size:50px; display:flex; justify-content:center; align-items:center; transform: translateY(-100%); transition: transform 0.7s ease;}
+.reel {
+    width:90px;height:90px;background:black;border:3px solid gold;border-radius:12px;
+    font-size:50px; display:flex; justify-content:center; align-items:center;
+    transform: translateY(-100%); transition: transform 0.25s linear;
+    filter:blur(0px);
+}
+.spinning {
+    filter: blur(4px); /* MEDIUM JILI BLUR EFFECT */
+}
 .win-glow {animation:glow 1s infinite alternate;}
 @keyframes glow {from{box-shadow:0 0 10px gold;} to{box-shadow:0 0 25px yellow;}}
 button.spin-btn {width:180px;padding:15px;margin-top:25px;background:linear-gradient(135deg,#ffd700,#ffae00);border:none;border-radius:15px;font-size:22px;font-weight:bold;color:black; box-shadow:0 0 20px gold;}
@@ -97,13 +104,31 @@ auth.onAuthStateChanged(async (user)=>{
 function setBet(amount){ bet=amount; document.getElementById("bet").innerHTML="Bet:"+bet; }
 function updateCoins(){ db.collection("users").doc(uid).update({coins}); document.getElementById("coins").innerHTML="Coins:"+coins; }
 
+function startSpinAnimation(reels){
+    reels.forEach(r => {
+        r.classList.add("spinning");
+        r.style.transform = "translateY(100%)";
+    });
+}
+
+function resetSpinAnimation(reels){
+    reels.forEach(r => {
+        r.style.transform = "translateY(-100%)";
+    });
+}
+
 async function spin(){
     if(coins<bet){ alert("Not enough coins!"); return; }
     coins-=bet; updateCoins();
 
+    document.getElementById("spinSound").currentTime = 0;
+    document.getElementById("spinSound").play();
+
     const top=[document.getElementById("r1_top"),document.getElementById("r2_top"),document.getElementById("r3_top")];
     const mid=[document.getElementById("r1_mid"),document.getElementById("r2_mid"),document.getElementById("r3_mid")];
     const bot=[document.getElementById("r1_bot"),document.getElementById("r2_bot"),document.getElementById("r3_bot")];
+
+    const allReels = [top, mid, bot].flat();
 
     const symbols=["🍒","🍋","⭐","🔔","🍉","7️⃣"];
     const payoutEls = {
@@ -114,60 +139,58 @@ async function spin(){
 
     payoutEls.top.innerText=0; payoutEls.mid.innerText=0; payoutEls.bot.innerText=0;
 
-    document.getElementById("spinSound").play();
-    if(navigator.vibrate) navigator.vibrate(100);
+    // 3 LOOP ANIMATION
+    for(let i=0;i<3;i++){
+        startSpinAnimation(allReels);
+        await new Promise(res=>setTimeout(res,250));
+        resetSpinAnimation(allReels);
+        await new Promise(res=>setTimeout(res,250));
+    }
+
+    allReels.forEach(r => r.classList.remove("spinning"));
 
     // RANDOMIZE MID (unchanged)
     mid.forEach(r=>{
-        r.style.transform="translateY(-100%)";
         r.innerHTML=symbols[Math.floor(Math.random()*symbols.length)];
+        r.style.transform="translateY(0)";
     });
 
     // ---- CONTROLLED TOP LINE ----
     let randTop = Math.random()*100;
     let t1,t2,t3;
 
-    if(randTop < jackpotRate){ 
-        t1=t2=t3="7️⃣"; 
-    }
-    else if(randTop < winRate + jackpotRate){
+    if(randTop < jackpotRate){
+        t1=t2=t3="7️⃣";
+    } else if(randTop < winRate + jackpotRate){
         t1=t2=symbols[Math.floor(Math.random()*symbols.length)];
         t3=symbols[Math.floor(Math.random()*symbols.length)];
-    }
-    else{
+    } else {
         t1=symbols[Math.floor(Math.random()*symbols.length)];
         t2=symbols[Math.floor(Math.random()*symbols.length)];
         t3=symbols[Math.floor(Math.random()*symbols.length)];
     }
 
-    top[0].innerHTML=t1;
-    top[1].innerHTML=t2;
-    top[2].innerHTML=t3;
+    top[0].innerHTML=t1; top[1].innerHTML=t2; top[2].innerHTML=t3;
 
-
-    // ---- CONTROLLED BOTTOM LINE (same as before) ----
+    // ---- CONTROLLED BOTTOM LINE ----
     let rand = Math.random()*100;
     let s1,s2,s3;
 
     if(rand < jackpotRate){
         s1=s2=s3="7️⃣";
-    }
-    else if(rand < winRate + jackpotRate){
+    } else if(rand < winRate + jackpotRate){
         s1=s2=symbols[Math.floor(Math.random()*symbols.length)];
         s3=symbols[Math.floor(Math.random()*symbols.length)];
-    }
-    else{
+    } else {
         s1=symbols[Math.floor(Math.random()*symbols.length)];
         s2=symbols[Math.floor(Math.random()*symbols.length)];
         s3=symbols[Math.floor(Math.random()*symbols.length)];
     }
 
-    bot[0].innerHTML=s1;
-    bot[1].innerHTML=s2;
-    bot[2].innerHTML=s3;
+    bot[0].innerHTML=s1; bot[1].innerHTML=s2; bot[2].innerHTML=s3;
 
-    // Slide Animation
-    [top, mid, bot].flat().forEach(r=>r.style.transform="translateY(0)");
+    // SHOW (translateY 0)
+    allReels.forEach(r => r.style.transform="translateY(0)");
 
     setTimeout(()=>{
         let lines={top, mid, bot};
@@ -186,7 +209,6 @@ async function spin(){
                 message="✨ Win +"+lineWin;
                 line.forEach(r=>r.classList.add("win-glow"));
                 document.getElementById("winSound").play();
-                if(navigator.vibrate) navigator.vibrate([150,50,150]);
             }
 
             payoutEls[key].innerText=lineWin;
@@ -204,7 +226,7 @@ async function spin(){
         });
 
         setTimeout(()=>[top, mid, bot].flat().forEach(r=>r.classList.remove("win-glow")),1000);
-    },800);
+    },600);
 }
 </script>
 </body>
