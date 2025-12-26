@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html>
-<head> 
+<head>
 <title>Slot Machine - JILI 3-Line</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
@@ -22,7 +22,7 @@ h2 {margin-top:20px; color:gold; text-shadow:0 0 10px gold; font-size:30px;}
     transform: translateY(-100%); transition: transform 0.25s linear;
     filter:blur(0px);
 }
-.spinning { filter: blur(4px); }
+.spinning {filter: blur(4px);}
 .win-glow {animation:glow 1s infinite alternate;}
 @keyframes glow {from{box-shadow:0 0 10px gold;} to{box-shadow:0 0 25px yellow;}}
 button.spin-btn {width:180px;padding:15px;margin-top:25px;background:linear-gradient(135deg,#ffd700,#ffae00);border:none;border-radius:15px;font-size:22px;font-weight:bold;color:black; box-shadow:0 0 20px gold;}
@@ -31,17 +31,17 @@ button.spin-btn {width:180px;padding:15px;margin-top:25px;background:linear-grad
 .payout-col div{margin:5px;}
 </style>
 </head>
+
 <body>
 
 <h2>🎰 JILI SLOT MACHINE</h2>
 
-<!-- Coins → Money -->
-<div id="coins">Money: 0</div>
+<div id="coins">Coins: 0</div>
 <div id="bet">Bet: 10</div>
 
 <div class="bet-btns">
 <button onclick="setBet(10)">10</button>
-<button onclick="setBet(20)">20</button>
+button onclick="setBet(20)">20</button>
 <button onclick="setBet(50)">50</button>
 <button onclick="setBet(100)">100</button>
 </div>
@@ -64,6 +64,7 @@ button.spin-btn {width:180px;padding:15px;margin-top:25px;background:linear-grad
             <div id="r3_bot" class="reel">⭐</div>
         </div>
     </div>
+
     <button class="spin-btn" onclick="spin()">SPIN</button>
 </div>
 
@@ -86,64 +87,97 @@ const firebaseConfig = {
   projectId: "ac-colour-prediction",
   storageBucket: "ac-colour-prediction.appspot.com",
 };
+
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
 let coins=0, bet=10, uid=null;
-let winRate=40, jackpotRate=5;
+let winRate=40, jackpotRate=5;   // DEFAULT (admin overwrite करेगा)
 
+// ================================
+//  ADMIN CONTROLLED LOGIC MODE
+// ================================
 auth.onAuthStateChanged(async (user)=>{
     if(!user){ location.href="index.html"; return; }
     uid=user.uid;
-    const snap = await db.collection("users").doc(uid).get();
-    if(snap.exists){
-        coins = snap.data().coins||0;
-        document.getElementById("coins").innerHTML="Money: "+coins;
+
+    const u = await db.collection("users").doc(uid).get();
+    if(u.exists){
+        coins = u.data().coins || 0;
+        document.getElementById("coins").innerHTML="Coins:"+coins;
     }
+
     const ctrl = await db.collection("slotControl").doc("settings").get();
-    if(ctrl.exists){ 
-        winRate=ctrl.data().winRate; 
-        jackpotRate=ctrl.data().jackpotRate; 
+    if(ctrl.exists){
+
+        jackpotRate = ctrl.data().jackpotRate;
+
+        // NEW FIELD
+        let logic = ctrl.data().logicMode;
+
+        // 🔥 ADMIN CONTROLLED LOGIC
+        if(logic === "high"){        // 70% win 30% lose
+            winRate = 70;
+        }
+        else if(logic === "medium"){ // 60% win 40% lose
+            winRate = 60;
+        }
+        else if(logic === "low"){    // 40% win 60% lose
+            winRate = 40;
+        }
     }
 });
 
-function setBet(amount){ bet=amount; document.getElementById("bet").innerHTML="Bet: "+bet; }
-function updateCoins(){ db.collection("users").doc(uid).update({coins}); document.getElementById("coins").innerHTML="Money: "+coins; }
+// =================================================
+
+function setBet(amount){
+    bet=amount;
+    document.getElementById("bet").innerHTML="Bet:"+bet;
+}
+
+function updateCoins(){
+    db.collection("users").doc(uid).update({coins});
+    document.getElementById("coins").innerHTML="Coins:"+coins;
+}
 
 function startSpinAnimation(reels){
-    reels.forEach(r => {
+    reels.forEach(r=>{
         r.classList.add("spinning");
-        r.style.transform = "translateY(100%)";
+        r.style.transform="translateY(100%)";
     });
 }
 
 function resetSpinAnimation(reels){
-    reels.forEach(r => { r.style.transform = "translateY(-100%)"; });
+    reels.forEach(r=>{
+        r.style.transform="translateY(-100%)";
+    });
 }
 
+// ======================
+// MAIN SPIN FUNCTION
+// ======================
 async function spin(){
-    if(coins<bet){ alert("Not enough money!"); return; }
-    coins-=bet; updateCoins();
+    if(coins<bet){ alert("Not enough coins!"); return; }
 
-    document.getElementById("spinSound").currentTime = 0;
+    coins-=bet;
+    updateCoins();
+
+    document.getElementById("spinSound").currentTime=0;
     document.getElementById("spinSound").play();
 
     const top=[r1_top,r2_top,r3_top];
     const mid=[r1_mid,r2_mid,r3_mid];
     const bot=[r1_bot,r2_bot,r3_bot];
 
-    const allReels = [top, mid, bot].flat();
-
+    const allReels=[...top,...mid,...bot];
     const symbols=["🍒","🍋","⭐","🔔","🍉","7️⃣"];
-    const payoutEls = {
-        top: payout_top,
-        mid: payout_mid,
-        bot: payout_bot
-    };
 
-    payoutEls.top.innerText=0; payoutEls.mid.innerText=0; payoutEls.bot.innerText=0;
+    document.getElementById("payout_top").innerText=0;
+    document.getElementById("payout_mid").innerText=0;
+    document.getElementById("payout_bot").innerText=0;
 
+    // triple spin animation
     for(let i=0;i<3;i++){
         startSpinAnimation(allReels);
         await new Promise(res=>setTimeout(res,250));
@@ -151,74 +185,84 @@ async function spin(){
         await new Promise(res=>setTimeout(res,250));
     }
 
-    allReels.forEach(r => r.classList.remove("spinning"));
+    allReels.forEach(r=>r.classList.remove("spinning"));
 
+    // MID RANDOM
     mid.forEach(r=>{
         r.innerHTML=symbols[Math.floor(Math.random()*symbols.length)];
         r.style.transform="translateY(0)";
     });
 
-    // ---- ONLY ONE CONTROL FORMULA (FIXED) ----
-    function controlledLine(){
-        let rand = Math.random()*100;
-        if(rand < jackpotRate){
+    // ============================
+    // CONTROLLED TOP & BOTTOM LINES
+    // ============================
+
+    function generateLine(){
+        let random = Math.random()*100;
+
+        if(random < jackpotRate){
             return ["7️⃣","7️⃣","7️⃣"];
         }
-        if(rand < jackpotRate + winRate){
+        else if(random < winRate + jackpotRate){
             let s = symbols[Math.floor(Math.random()*symbols.length)];
-            return [s,s,symbols[Math.floor(Math.random()*symbols.length)]];
+            return [s, s, symbols[Math.floor(Math.random()*symbols.length)]];
         }
-        return [
-            symbols[Math.floor(Math.random()*symbols.length)],
-            symbols[Math.floor(Math.random()*symbols.length)],
-            symbols[Math.floor(Math.random()*symbols.length)]
-        ];
+        else{
+            return [
+                symbols[Math.floor(Math.random()*symbols.length)],
+                symbols[Math.floor(Math.random()*symbols.length)],
+                symbols[Math.floor(Math.random()*symbols.length)]
+            ];
+        }
     }
 
-    let t = controlledLine();
-    top[0].innerHTML=t[0]; top[1].innerHTML=t[1]; top[2].innerHTML=t[2];
+    const TL = generateLine();
+    const BL = generateLine();
 
-    let b = controlledLine();
-    bot[0].innerHTML=b[0]; bot[1].innerHTML=b[1]; bot[2].innerHTML=b[2];
+    [r1_top.innerHTML,r2_top.innerHTML,r3_top.innerHTML]=TL;
+    [r1_bot.innerHTML,r2_bot.innerHTML,r3_bot.innerHTML]=BL;
 
-    allReels.forEach(r => r.style.transform="translateY(0)");
+    allReels.forEach(r=>r.style.transform="translateY(0)");
 
     setTimeout(()=>{
         let lines={top, mid, bot};
-        let win=0, message="❌ Try Again!";
+        let win=0;
+        let message="❌ Try Again!";
 
         for(let key in lines){
-            let line = lines[key];
-            let lineWin=0;
+            let L = lines[key];
+            let w = 0;
 
-            if(line[0].innerHTML===line[1].innerHTML && line[1].innerHTML===line[2].innerHTML){
-                if(key==="top") lineWin=bet*10;
-                else if(key==="mid") lineWin=bet*4;
-                else if(key==="bot") lineWin=bet*3;
+            if(L[0].innerHTML===L[1].innerHTML && L[1].innerHTML===L[2].innerHTML){
 
-                win=lineWin;
-                message="✨ Win +"+lineWin;
-                line.forEach(r=>r.classList.add("win-glow"));
+                if(key==="top") w=bet*10;
+                if(key==="mid") w=bet*4;
+                if(key==="bot") w=bet*3;
+
+                win=w;
+                message="✨ Win +"+w;
+                L.forEach(r=>r.classList.add("win-glow"));
                 winSound.play();
             }
 
-            payoutEls[key].innerText=lineWin;
+            document.getElementById("payout_"+key).innerText=w;
         }
 
-        coins+=win; updateCoins();
+        coins+=win;
+        updateCoins();
         result.innerText=message;
 
         db.collection("transactions").add({
             uid, game:"slot", bet, win,
-            top: top.map(r=>r.innerHTML),
-            mid: mid.map(r=>r.innerHTML),
-            bot: bot.map(r=>r.innerHTML),
-            time: new Date()
+            top:TL, mid:mid.map(r=>r.innerHTML), bot:BL,
+            time:new Date()
         });
 
-        setTimeout(()=>[top, mid, bot].flat().forEach(r=>r.classList.remove("win-glow")),1000);
+        setTimeout(()=>allReels.forEach(r=>r.classList.remove("win-glow")),1000);
+
     },600);
 }
 </script>
+
 </body>
-    </html>
+                           </html>
