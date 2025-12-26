@@ -48,6 +48,14 @@ tr:hover{background:#333;}
   <option value="70_30">Logic 2 (30% Win / 70% Lose)</option>
   <option value="40_60">Logic 3 (40% Win / 60% Lose)</option>
 </select>
+
+<!-- High / Medium / Low Buttons -->
+<div style="display:flex;gap:5px;margin-top:10px;">
+  <button onclick="setHigh()">High</button>
+  <button onclick="setMedium()">Medium</button>
+  <button onclick="setLow()">Low</button>
+</div>
+
 <button onclick="saveSlotLogic()">Save Slot Logic</button>
 <p id="slotStatus" class="banner">Loading...</p>
 </section>
@@ -66,8 +74,8 @@ tr:hover{background:#333;}
 <h3>Withdrawals</h3>
 <div class="collapsible">
 <table id="withdrawTable">
-<tr><th>User</th><th>Coins</th><th>Status</th><th>Action</th></tr>
-<tr><td colspan="4">Loading...</td></tr>
+<tr><th>User</th><th>Coins</th><th>Bank Details</th><th>UPI</th><th>Status</th><th>Action</th></tr>
+<tr><td colspan="6">Loading...</td></tr>
 </table>
 </div>
 </section>
@@ -142,7 +150,7 @@ async function saveSlotLogic(){
   const logic = document.getElementById("slotLogic").value;
   let winRate=0;
   if(logic==="60_40") winRate=60;
-  if(logic==="70_30") winRate=30;
+  if(logic==="70_30") winRate=70; // updated logic
   if(logic==="40_60") winRate=40;
   await db.collection("slotControl").doc("settings").set({
     logic, winRate, loseRate:100-winRate, updated:new Date()
@@ -157,6 +165,11 @@ async function loadSlotLogic(){
     slotStatus.innerText = "Current: "+doc.data().logic+" ("+doc.data().winRate+"% Win / "+doc.data().loseRate+"% Lose)";
   }
 }
+
+/* High / Medium / Low buttons */
+function setHigh(){ slotLogic.value="70_30"; }
+function setMedium(){ slotLogic.value="60_40"; }
+function setLow(){ slotLogic.value="40_60"; }
 
 /* USERS */
 function loadUsers(){
@@ -185,12 +198,14 @@ async function addCoins(uid,amt){
 /* WITHDRAWALS */
 function loadWithdrawals(){
   db.collection("withdrawals").orderBy("requestedAt","desc").onSnapshot(snap=>{
-    let html=`<tr><th>User</th><th>Coins</th><th>Status</th><th>Action</th></tr>`;
+    let html=`<tr><th>User</th><th>Coins</th><th>Bank Details</th><th>UPI</th><th>Status</th><th>Action</th></tr>`;
     snap.forEach(doc=>{
       const d=doc.data();
       html+=`<tr>
         <td>${d.email}</td>
         <td>${d.coins}</td>
+        <td>${d.bankDetails || "-"}</td>
+        <td>${d.upi || "-"}</td>
         <td>${d.status}</td>
         <td>${d.status==="Pending"?`<button class="approve" onclick="handleWithdrawal('${doc.id}',true,${d.coins},'${d.uid}')">Approve</button>
         <button class="reject" onclick="handleWithdrawal('${doc.id}',false,${d.coins},'${d.uid}')">Reject</button>`:"-"}</td>
@@ -255,4 +270,4 @@ function logout(){auth.signOut();}
 </script>
 
 </body>
-</html>
+  </html>
