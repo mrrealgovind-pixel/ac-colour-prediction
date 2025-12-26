@@ -44,9 +44,9 @@ tr:hover{background:#333;}
 <section>
 <h3>Slot Game Logic</h3>
 <select id="slotLogic">
-  <option value="60_40">Logic 1 (60% Win / 40% Lose)</option>
-  <option value="70_30">Logic 2 (70% Win / 30% Lose)</option>
-  <option value="40_60">Logic 3 (40% Win / 60% Lose)</option>
+  <option value="high">High (70% Win / 30% Lose)</option>
+  <option value="medium">Medium (60% Win / 40% Lose)</option>
+  <option value="low">Low (40% Win / 60% Lose)</option>
 </select>
 
 <!-- High / Medium / Low Buttons -->
@@ -147,29 +147,38 @@ async function loadAutoStatus(){
 
 /* SLOT LOGIC */
 async function saveSlotLogic(){
-  const logic = document.getElementById("slotLogic").value;
+  const logic = document.getElementById("slotLogic").value; // high/medium/low
   let winRate=0;
-  if(logic==="70_30") winRate=70; 
-  if(logic==="60_40") winRate=60; 
-  if(logic==="40_60") winRate=40;
+
+  if(logic==="high") winRate=70;
+  else if(logic==="medium") winRate=60;
+  else if(logic==="low") winRate=40;
+
   await db.collection("slotControl").doc("settings").set({
-    logic, winRate, loseRate:100-winRate, updated:new Date()
-  });
-  alert("Slot Logic Saved!");
+    logicMode:logic,      // 🔥 admin control
+    winRate:winRate,
+    loseRate:100-winRate,
+    updated:new Date()
+  }, {merge:true});
+
+  alert("Slot Logic Saved: "+logic+" ("+winRate+"% Win / "+(100-winRate)+"% Lose)");
   loadSlotLogic();
 }
+
 async function loadSlotLogic(){
   const doc = await db.collection("slotControl").doc("settings").get();
   if(doc.exists){
-    slotLogic.value = doc.data().logic;
-    slotStatus.innerText = "Current: "+doc.data().logic+" ("+doc.data().winRate+"% Win / "+doc.data().loseRate+"% Lose)";
+    const logic = doc.data().logicMode || "medium";
+    slotLogic.value = logic;
+    const winRate = doc.data().winRate || 60;
+    slotStatus.innerText = "Current: "+logic+" ("+winRate+"% Win / "+(100-winRate)+"% Lose)";
   }
 }
 
 /* High / Medium / Low buttons */
-function setHigh(){ slotLogic.value="70_30"; }
-function setMedium(){ slotLogic.value="60_40"; }
-function setLow(){ slotLogic.value="40_60"; }
+function setHigh(){ slotLogic.value="high"; }
+function setMedium(){ slotLogic.value="medium"; }
+function setLow(){ slotLogic.value="low"; }
 
 /* USERS */
 function loadUsers(){
