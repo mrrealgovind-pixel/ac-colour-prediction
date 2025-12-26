@@ -44,9 +44,9 @@ tr:hover{background:#333;}
 <section>
 <h3>Slot Game Logic</h3>
 <select id="slotLogic">
-  <option value="high">High (70% Win / 30% Lose)</option>
-  <option value="medium">Medium (60% Win / 40% Lose)</option>
-  <option value="low">Low (40% Win / 60% Lose)</option>
+  <option value="high">High (60% Win / 40% Lose)</option>
+  <option value="medium">Medium (40% Win / 60% Lose)</option>
+  <option value="low">Low (30% Win / 70% Lose)</option>
 </select>
 
 <!-- High / Medium / Low Buttons -->
@@ -150,12 +150,12 @@ async function saveSlotLogic(){
   const logic = document.getElementById("slotLogic").value; // high/medium/low
   let winRate=0;
 
-  if(logic==="high") winRate=70;
-  else if(logic==="medium") winRate=60;
-  else if(logic==="low") winRate=40;
+  if(logic==="high") winRate=60;
+  else if(logic==="medium") winRate=40;
+  else if(logic==="low") winRate=30;
 
   await db.collection("slotControl").doc("settings").set({
-    logicMode:logic,      // 🔥 admin control
+    logicMode:logic,
     winRate:winRate,
     loseRate:100-winRate,
     updated:new Date()
@@ -170,7 +170,7 @@ async function loadSlotLogic(){
   if(doc.exists){
     const logic = doc.data().logicMode || "medium";
     slotLogic.value = logic;
-    const winRate = doc.data().winRate || 60;
+    const winRate = doc.data().winRate || 40;
     slotStatus.innerText = "Current: "+logic+" ("+winRate+"% Win / "+(100-winRate)+"% Lose)";
   }
 }
@@ -279,4 +279,4 @@ function logout(){auth.signOut();}
 </script>
 
 </body>
-  </html>
+</html>
