@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
-<head> <title>Slot Machine - JILI 3-Line</title>
+<head> 
+<title>Slot Machine - JILI 3-Line</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -21,9 +22,7 @@ h2 {margin-top:20px; color:gold; text-shadow:0 0 10px gold; font-size:30px;}
     transform: translateY(-100%); transition: transform 0.25s linear;
     filter:blur(0px);
 }
-.spinning {
-    filter: blur(4px); /* MEDIUM JILI BLUR EFFECT */
-}
+.spinning { filter: blur(4px); }
 .win-glow {animation:glow 1s infinite alternate;}
 @keyframes glow {from{box-shadow:0 0 10px gold;} to{box-shadow:0 0 25px yellow;}}
 button.spin-btn {width:180px;padding:15px;margin-top:25px;background:linear-gradient(135deg,#ffd700,#ffae00);border:none;border-radius:15px;font-size:22px;font-weight:bold;color:black; box-shadow:0 0 20px gold;}
@@ -35,7 +34,9 @@ button.spin-btn {width:180px;padding:15px;margin-top:25px;background:linear-grad
 <body>
 
 <h2>🎰 JILI SLOT MACHINE</h2>
-<div id="coins">Coins: 0</div>
+
+<!-- Coins → Money -->
+<div id="coins">Money: 0</div>
 <div id="bet">Bet: 10</div>
 
 <div class="bet-btns">
@@ -96,13 +97,19 @@ auth.onAuthStateChanged(async (user)=>{
     if(!user){ location.href="index.html"; return; }
     uid=user.uid;
     const snap = await db.collection("users").doc(uid).get();
-    if(snap.exists){ coins = snap.data().coins||0; document.getElementById("coins").innerHTML="Coins:"+coins; }
+    if(snap.exists){
+        coins = snap.data().coins||0;
+        document.getElementById("coins").innerHTML="Money: "+coins;
+    }
     const ctrl = await db.collection("slotControl").doc("settings").get();
-    if(ctrl.exists){ winRate=ctrl.data().winRate; jackpotRate=ctrl.data().jackpotRate; }
+    if(ctrl.exists){ 
+        winRate=ctrl.data().winRate; 
+        jackpotRate=ctrl.data().jackpotRate; 
+    }
 });
 
-function setBet(amount){ bet=amount; document.getElementById("bet").innerHTML="Bet:"+bet; }
-function updateCoins(){ db.collection("users").doc(uid).update({coins}); document.getElementById("coins").innerHTML="Coins:"+coins; }
+function setBet(amount){ bet=amount; document.getElementById("bet").innerHTML="Bet: "+bet; }
+function updateCoins(){ db.collection("users").doc(uid).update({coins}); document.getElementById("coins").innerHTML="Money: "+coins; }
 
 function startSpinAnimation(reels){
     reels.forEach(r => {
@@ -112,34 +119,31 @@ function startSpinAnimation(reels){
 }
 
 function resetSpinAnimation(reels){
-    reels.forEach(r => {
-        r.style.transform = "translateY(-100%)";
-    });
+    reels.forEach(r => { r.style.transform = "translateY(-100%)"; });
 }
 
 async function spin(){
-    if(coins<bet){ alert("Not enough coins!"); return; }
+    if(coins<bet){ alert("Not enough money!"); return; }
     coins-=bet; updateCoins();
 
     document.getElementById("spinSound").currentTime = 0;
     document.getElementById("spinSound").play();
 
-    const top=[document.getElementById("r1_top"),document.getElementById("r2_top"),document.getElementById("r3_top")];
-    const mid=[document.getElementById("r1_mid"),document.getElementById("r2_mid"),document.getElementById("r3_mid")];
-    const bot=[document.getElementById("r1_bot"),document.getElementById("r2_bot"),document.getElementById("r3_bot")];
+    const top=[r1_top,r2_top,r3_top];
+    const mid=[r1_mid,r2_mid,r3_mid];
+    const bot=[r1_bot,r2_bot,r3_bot];
 
     const allReels = [top, mid, bot].flat();
 
     const symbols=["🍒","🍋","⭐","🔔","🍉","7️⃣"];
     const payoutEls = {
-        top: document.getElementById("payout_top"),
-        mid: document.getElementById("payout_mid"),
-        bot: document.getElementById("payout_bot")
+        top: payout_top,
+        mid: payout_mid,
+        bot: payout_bot
     };
 
     payoutEls.top.innerText=0; payoutEls.mid.innerText=0; payoutEls.bot.innerText=0;
 
-    // 3 LOOP ANIMATION
     for(let i=0;i<3;i++){
         startSpinAnimation(allReels);
         await new Promise(res=>setTimeout(res,250));
@@ -149,47 +153,34 @@ async function spin(){
 
     allReels.forEach(r => r.classList.remove("spinning"));
 
-    // RANDOMIZE MID (unchanged)
     mid.forEach(r=>{
         r.innerHTML=symbols[Math.floor(Math.random()*symbols.length)];
         r.style.transform="translateY(0)";
     });
 
-    // ---- CONTROLLED TOP LINE ----
-    let randTop = Math.random()*100;
-    let t1,t2,t3;
-
-    if(randTop < jackpotRate){
-        t1=t2=t3="7️⃣";
-    } else if(randTop < winRate + jackpotRate){
-        t1=t2=symbols[Math.floor(Math.random()*symbols.length)];
-        t3=symbols[Math.floor(Math.random()*symbols.length)];
-    } else {
-        t1=symbols[Math.floor(Math.random()*symbols.length)];
-        t2=symbols[Math.floor(Math.random()*symbols.length)];
-        t3=symbols[Math.floor(Math.random()*symbols.length)];
+    // ---- ONLY ONE CONTROL FORMULA (FIXED) ----
+    function controlledLine(){
+        let rand = Math.random()*100;
+        if(rand < jackpotRate){
+            return ["7️⃣","7️⃣","7️⃣"];
+        }
+        if(rand < jackpotRate + winRate){
+            let s = symbols[Math.floor(Math.random()*symbols.length)];
+            return [s,s,symbols[Math.floor(Math.random()*symbols.length)]];
+        }
+        return [
+            symbols[Math.floor(Math.random()*symbols.length)],
+            symbols[Math.floor(Math.random()*symbols.length)],
+            symbols[Math.floor(Math.random()*symbols.length)]
+        ];
     }
 
-    top[0].innerHTML=t1; top[1].innerHTML=t2; top[2].innerHTML=t3;
+    let t = controlledLine();
+    top[0].innerHTML=t[0]; top[1].innerHTML=t[1]; top[2].innerHTML=t[2];
 
-    // ---- CONTROLLED BOTTOM LINE ----
-    let rand = Math.random()*100;
-    let s1,s2,s3;
+    let b = controlledLine();
+    bot[0].innerHTML=b[0]; bot[1].innerHTML=b[1]; bot[2].innerHTML=b[2];
 
-    if(rand < jackpotRate){
-        s1=s2=s3="7️⃣";
-    } else if(rand < winRate + jackpotRate){
-        s1=s2=symbols[Math.floor(Math.random()*symbols.length)];
-        s3=symbols[Math.floor(Math.random()*symbols.length)];
-    } else {
-        s1=symbols[Math.floor(Math.random()*symbols.length)];
-        s2=symbols[Math.floor(Math.random()*symbols.length)];
-        s3=symbols[Math.floor(Math.random()*symbols.length)];
-    }
-
-    bot[0].innerHTML=s1; bot[1].innerHTML=s2; bot[2].innerHTML=s3;
-
-    // SHOW (translateY 0)
     allReels.forEach(r => r.style.transform="translateY(0)");
 
     setTimeout(()=>{
@@ -208,14 +199,14 @@ async function spin(){
                 win=lineWin;
                 message="✨ Win +"+lineWin;
                 line.forEach(r=>r.classList.add("win-glow"));
-                document.getElementById("winSound").play();
+                winSound.play();
             }
 
             payoutEls[key].innerText=lineWin;
         }
 
         coins+=win; updateCoins();
-        document.getElementById("result").innerText=message;
+        result.innerText=message;
 
         db.collection("transactions").add({
             uid, game:"slot", bet, win,
