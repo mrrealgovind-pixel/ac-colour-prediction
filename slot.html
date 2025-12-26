@@ -87,47 +87,67 @@ const firebaseConfig = {
   projectId: "ac-colour-prediction",
   storageBucket: "ac-colour-prediction.appspot.com",
 };
+
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
 let coins=0, bet=10, uid=null;
-let winRate=40;   // default
-let jackpotRate=0; // removed old jackpot logic
+let winRate=40, jackpotRate=5;   // DEFAULT
 
 auth.onAuthStateChanged(async (user)=>{
     if(!user){ location.href="index.html"; return; }
     uid=user.uid;
 
     const u = await db.collection("users").doc(uid).get();
-    if(u.exists){ coins = u.data().coins || 0; document.getElementById("coins").innerHTML="Coins:"+coins; }
+    if(u.exists){
+        coins = u.data().coins || 0;
+        document.getElementById("coins").innerHTML="Coins:"+coins;
+    }
 
     const ctrl = await db.collection("slotControl").doc("settings").get();
     if(ctrl.exists){
-        let logic = ctrl.data().logicMode; // admin set High/Medium/Low
+        jackpotRate = ctrl.data().jackpotRate || 5;
 
-        if(logic === "high"){ winRate=70; }
-        else if(logic === "medium"){ winRate=60; }
-        else if(logic === "low"){ winRate=40; }
+        // ADMIN CONTROLLED LOGIC
+        let logic = ctrl.data().logicMode;  // high / medium / low
+        if(logic === "high") winRate = 70;
+        else if(logic === "medium") winRate = 60;
+        else if(logic === "low") winRate = 40;
     }
 });
 
-// ==============================
+function setBet(amount){
+    bet=amount;
+    document.getElementById("bet").innerHTML="Bet:"+bet;
+}
 
-function setBet(amount){ bet=amount; document.getElementById("bet").innerHTML="Bet:"+bet; }
-function updateCoins(){ db.collection("users").doc(uid).update({coins}); document.getElementById("coins").innerHTML="Coins:"+coins; }
+function updateCoins(){
+    db.collection("users").doc(uid).update({coins});
+    document.getElementById("coins").innerHTML="Coins:"+coins;
+}
 
-function startSpinAnimation(reels){ reels.forEach(r=>{r.classList.add("spinning"); r.style.transform="translateY(100%)";}); }
-function resetSpinAnimation(reels){ reels.forEach(r=>{ r.style.transform="translateY(-100%)"; }); }
+function startSpinAnimation(reels){
+    reels.forEach(r=>{
+        r.classList.add("spinning");
+        r.style.transform="translateY(100%)";
+    });
+}
 
-// ======================
-// SPIN FUNCTION
-// ======================
+function resetSpinAnimation(reels){
+    reels.forEach(r=>{
+        r.style.transform="translateY(-100%)";
+    });
+}
+
 async function spin(){
     if(coins<bet){ alert("Not enough coins!"); return; }
-    coins-=bet; updateCoins();
 
-    document.getElementById("spinSound").currentTime=0; document.getElementById("spinSound").play();
+    coins-=bet;
+    updateCoins();
+
+    document.getElementById("spinSound").currentTime=0;
+    document.getElementById("spinSound").play();
 
     const top=[r1_top,r2_top,r3_top];
     const mid=[r1_mid,r2_mid,r3_mid];
@@ -139,29 +159,36 @@ async function spin(){
     document.getElementById("payout_mid").innerText=0;
     document.getElementById("payout_bot").innerText=0;
 
+    // triple spin animation
     for(let i=0;i<3;i++){
         startSpinAnimation(allReels);
         await new Promise(res=>setTimeout(res,250));
         resetSpinAnimation(allReels);
         await new Promise(res=>setTimeout(res,250));
     }
-
     allReels.forEach(r=>r.classList.remove("spinning"));
 
-    mid.forEach(r=>{ r.innerHTML=symbols[Math.floor(Math.random()*symbols.length)]; r.style.transform="translateY(0)"; });
+    // MID RANDOM
+    mid.forEach(r=>{
+        r.innerHTML=symbols[Math.floor(Math.random()*symbols.length)];
+        r.style.transform="translateY(0)";
+    });
 
-    // ============================
-    // ADMIN CONTROLLED WIN LOGIC
-    // ============================
+    // CONTROLLED TOP & BOTTOM LINES
     function generateLine(){
-        let rand=Math.random()*100;
-        if(rand < winRate){
+        let rand = Math.random()*100;
+        if(rand < jackpotRate){
+            return ["7️⃣","7️⃣","7️⃣"];
+        }
+        else if(rand < winRate + jackpotRate){
             let s = symbols[Math.floor(Math.random()*symbols.length)];
-            return [s,s,s];
-        } else{
-            return [ symbols[Math.floor(Math.random()*symbols.length)],
-                     symbols[Math.floor(Math.random()*symbols.length)],
-                     symbols[Math.floor(Math.random()*symbols.length)] ];
+            return [s, s, symbols[Math.floor(Math.random()*symbols.length)]];
+        } else {
+            return [
+                symbols[Math.floor(Math.random()*symbols.length)],
+                symbols[Math.floor(Math.random()*symbols.length)],
+                symbols[Math.floor(Math.random()*symbols.length)]
+            ];
         }
     }
 
@@ -170,23 +197,33 @@ async function spin(){
 
     [r1_top.innerHTML,r2_top.innerHTML,r3_top.innerHTML]=TL;
     [r1_bot.innerHTML,r2_bot.innerHTML,r3_bot.innerHTML]=BL;
+
     allReels.forEach(r=>r.style.transform="translateY(0)");
 
     setTimeout(()=>{
         let lines={top, mid, bot};
-        let win=0; let message="❌ Try Again!";
+        let win=0;
+        let message="❌ Try Again!";
+
         for(let key in lines){
-            let L = lines[key]; let w=0;
+            let L = lines[key];
+            let w = 0;
+
             if(L[0].innerHTML===L[1].innerHTML && L[1].innerHTML===L[2].innerHTML){
                 if(key==="top") w=bet*10;
                 if(key==="mid") w=bet*4;
                 if(key==="bot") w=bet*3;
-                win+=w; message="✨ Win +"+win;
-                L.forEach(r=>r.classList.add("win-glow")); winSound.play();
+
+                win=w;
+                message="✨ Win +"+w;
+                L.forEach(r=>r.classList.add("win-glow"));
+                winSound.play();
             }
             document.getElementById("payout_"+key).innerText=w;
         }
-        coins+=win; updateCoins();
+
+        coins+=win;
+        updateCoins();
         result.innerText=message;
 
         db.collection("transactions").add({
@@ -194,10 +231,11 @@ async function spin(){
             top:TL, mid:mid.map(r=>r.innerHTML), bot:BL,
             time:new Date()
         });
+
         setTimeout(()=>allReels.forEach(r=>r.classList.remove("win-glow")),1000);
     },600);
 }
 </script>
 
 </body>
-</html>
+    </html>
