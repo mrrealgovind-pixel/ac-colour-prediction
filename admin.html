@@ -45,7 +45,7 @@ tr:hover{background:#333;}
 <h3>Slot Game Logic</h3>
 <select id="slotLogic">
   <option value="60_40">Logic 1 (60% Win / 40% Lose)</option>
-  <option value="70_30">Logic 2 (30% Win / 70% Lose)</option>
+  <option value="70_30">Logic 2 (70% Win / 30% Lose)</option>
   <option value="40_60">Logic 3 (40% Win / 60% Lose)</option>
 </select>
 
@@ -149,8 +149,8 @@ async function loadAutoStatus(){
 async function saveSlotLogic(){
   const logic = document.getElementById("slotLogic").value;
   let winRate=0;
-  if(logic==="60_40") winRate=60;
-  if(logic==="70_30") winRate=70; // updated logic
+  if(logic==="70_30") winRate=70; 
+  if(logic==="60_40") winRate=60; 
   if(logic==="40_60") winRate=40;
   await db.collection("slotControl").doc("settings").set({
     logic, winRate, loseRate:100-winRate, updated:new Date()
