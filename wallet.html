@@ -18,12 +18,36 @@ button{cursor:pointer;}
 input{width:calc(100% - 20px);}
 #qrCode{margin:10px auto; display:block; width:200px; height:200px; background:#fff; border-radius:8px; padding:10px;}
 .banner{background:#00e676;color:#000;text-align:center;padding:10px;border-radius:8px;margin:10px 0;font-weight:bold;}
+.infoBox{
+    background:#222;
+    padding:10px;
+    margin:10px 0;
+    border-left:4px solid #00e676;
+    border-radius:6px;
+    font-size:14px;
+    line-height:20px;
+}
 </style>
 </head>
 <body>
 
 <h2>My Wallet</h2>
-<p>Coins: <span id="coins">0</span></p>
+<p>Money: <span id="coins">0</span></p>
+
+<div class="infoBox">
+<b>सूचना:</b>  
+<br><br>
+पैसे जोड़ने के लिए, पेमेंट डालें, जेनरेट कोड पर क्लिक करें, दिखाई देने वाले QR कोड का स्क्रीनशॉट लें और Google Pay, Phone Pay, Paytm जैसे किसी भी ऐप का इस्तेमाल करके पेमेंट करें।  
+पेमेंट करने के बाद, UTR नंबर कॉपी करके सबमिट करें।  
+पेमेंट जोड़ने में 5–10 मिनट लग सकते हैं।  
+<br><br>
+पेमेंट जोड़ने और निकालने का समय सुबह 7 बजे से रात 10 बजे तक है।  
+आप कभी भी गेम खेल सकते हैं।
+<br><br>
+paise jodane ke lie, pement daalen, jenaret kod par klik karen, dikhaee dene vaale QR ka screenshot len aur Google Pay/PhonePe/Paytm se payment karen.  
+payment ke baad UTR submit karen.  
+payment jodne me 5–10 min lag sakte hain.  
+</div>
 
 <section>
 <h3>Admin UPI / Mobile</h3>
@@ -31,8 +55,8 @@ input{width:calc(100% - 20px);}
 </section>
 
 <section>
-<h3>Add Coins</h3>
-<input type="number" id="amount" placeholder="Enter Amount"><br>
+<h3>Add Money</h3>
+<input type="number" id="amount" placeholder="Enter Amount (Min ₹100)"><br>
 <button class="recharge" onclick="generateQR()">Generate QR</button>
 <p>Scan QR with PhonePe / GooglePay / Paytm</p>
 <canvas id="qrCode"></canvas>
@@ -42,7 +66,7 @@ input{width:calc(100% - 20px);}
 
 <section>
 <h3>Withdrawal</h3>
-<input type="number" id="wAmount" placeholder="Enter Withdrawal Amount">
+<input type="number" id="wAmount" placeholder="Enter Withdrawal Amount (Min ₹110)">
 <button class="withdraw" onclick="withdraw()">Withdraw</button>
 </section>
 
@@ -78,7 +102,7 @@ auth.onAuthStateChanged(user => {
   }
 });
 
-// ================= LOAD COINS =================
+// ================= LOAD MONEY =================
 function loadWallet(){
   db.collection("users").doc(USER_ID).onSnapshot(doc => {
     coins.innerText = doc.exists && doc.data().coins ? doc.data().coins : 0;
@@ -97,9 +121,9 @@ function loadUPI(){
 async function generateQR(){
   let amt = Number(amount.value);
   if(!amt) return alert("Enter Amount");
+  if(amt < 100) return alert("Minimum add money amount is ₹100");
   if(!ADMIN_UPI) return alert("Admin UPI / Mobile not available");
 
-  // Create pending recharge request in Firestore
   const docRef = await db.collection("walletRequests").add({
     uid: USER_ID,
     email: USER_EMAIL,
@@ -109,13 +133,10 @@ async function generateQR(){
     time: firebase.firestore.FieldValue.serverTimestamp()
   });
 
-  // Save the docId to input for UTR submit
   document.getElementById("utr").dataset.docId = docRef.id;
 
-  // UPI URL for QR
   let upiUrl = `upi://pay?pa=${ADMIN_UPI}&pn=AC%20Colour%20Admin&am=${amt}&cu=INR&tn=Recharge%20${amt}`;
 
-  // Generate QR
   const canvas = document.getElementById('qrCode');
   QRCode.toCanvas(canvas, upiUrl, { width: 200 }, function (error) {
     if (error) console.error(error);
@@ -143,11 +164,12 @@ async function submitUTR(){
 async function withdraw(){
   let amt = Number(wAmount.value);
   if(!amt) return alert("Enter amount");
+  if(amt < 110) return alert("Minimum withdrawal amount is ₹110");
 
   const userDoc = await db.collection("users").doc(USER_ID).get();
   let coinsVal = userDoc.exists && userDoc.data().coins ? userDoc.data().coins : 0;
 
-  if(coinsVal < amt) return alert("Not enough coins!");
+  if(coinsVal < amt) return alert("Not enough balance!");
 
   await db.collection("withdrawals").add({
     uid: USER_ID,
@@ -163,4 +185,4 @@ async function withdraw(){
 </script>
 
 </body>
-</html>
+  </html>
